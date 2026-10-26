@@ -18,9 +18,9 @@ import com.adrianausin.wallet.domain.Transaction.Transfer;
 import com.adrianausin.wallet.domain.Transaction.Withdrawal;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Repository;
 
-@Component
+@Repository
 class TransactionPersistenceAdapter implements TransactionRepository {
 
     private final TransactionJpaRepository transactions;

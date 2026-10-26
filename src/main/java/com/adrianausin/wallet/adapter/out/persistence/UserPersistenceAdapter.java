@@ -5,9 +5,9 @@ import java.util.Optional;
 import com.adrianausin.wallet.application.port.out.UserRepository;
 import com.adrianausin.wallet.domain.Ids.UserId;
 import com.adrianausin.wallet.domain.User;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Repository;
 
-@Component
+@Repository
 class UserPersistenceAdapter implements UserRepository {
 
     private final UserJpaRepository repository;

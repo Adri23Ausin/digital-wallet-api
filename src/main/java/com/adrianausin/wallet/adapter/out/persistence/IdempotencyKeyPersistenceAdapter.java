@@ -10,14 +10,14 @@ import com.adrianausin.wallet.application.port.out.IdempotencyKeyRepository;
 import com.adrianausin.wallet.domain.Ids.TransactionId;
 import com.adrianausin.wallet.domain.Ids.UserId;
 import jakarta.persistence.EntityManager;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Repository;
 
 /**
  * Native SQL because the reservation relies on PostgreSQL's {@code ON CONFLICT DO NOTHING}:
  * an insert that collides with a row from a transaction still in flight waits for it, so two
  * concurrent requests with the same key can never both run.
  */
-@Component
+@Repository
 class IdempotencyKeyPersistenceAdapter implements IdempotencyKeyRepository {
 
     private final EntityManager entityManager;

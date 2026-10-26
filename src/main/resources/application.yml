@@ -15,6 +15,10 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+    properties:
+      # Flush updates in primary key order: two opposite transfers (A->B and B->A) then lock
+      # both wallets in the same order instead of deadlocking each other.
+      hibernate.order_updates: true
   flyway:
     enabled: true
 

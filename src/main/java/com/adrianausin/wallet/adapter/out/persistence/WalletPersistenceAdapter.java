@@ -10,9 +10,9 @@ import com.adrianausin.wallet.domain.Ids.WalletId;
 import com.adrianausin.wallet.domain.Money;
 import com.adrianausin.wallet.domain.Wallet;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Repository;
 
-@Component
+@Repository
 class WalletPersistenceAdapter implements WalletRepository {
 
     private final WalletJpaRepository repository;

@@ -11,6 +11,7 @@ import com.adrianausin.wallet.domain.InsufficientFundsException;
 import com.adrianausin.wallet.domain.InvalidAmountException;
 import com.adrianausin.wallet.domain.InvalidTransferException;
 import com.adrianausin.wallet.domain.WalletDomainException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -45,6 +46,17 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
             case IdempotencyKeyReusedException e -> HttpStatus.UNPROCESSABLE_CONTENT;
         };
         return problem(status, ex);
+    }
+
+    /**
+     * Only reached when a movement kept losing optimistic locking races after all retries.
+     */
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    ProblemDetail handleConcurrentModification(OptimisticLockingFailureException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                "The wallet was modified concurrently, please retry with the same Idempotency-Key");
+        problem.setTitle(HttpStatus.CONFLICT.getReasonPhrase());
+        return problem;
     }
 
     private static ProblemDetail problem(HttpStatus status, RuntimeException ex) {
