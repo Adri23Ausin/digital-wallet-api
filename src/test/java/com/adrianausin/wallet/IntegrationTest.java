@@ -43,10 +43,20 @@ public abstract class IntegrationTest {
         return read(login, "$.accessToken");
     }
 
+    /**
+     * POSTs with a fresh {@code Idempotency-Key}, as a well-behaved client would.
+     */
     protected MvcTestResult post(String uri, String json, String token) {
+        return post(uri, json, token, UUID.randomUUID().toString());
+    }
+
+    protected MvcTestResult post(String uri, String json, String token, String idempotencyKey) {
         var request = mvc.post().uri(uri).contentType(MediaType.APPLICATION_JSON).content(json);
         if (token != null) {
             request = request.header("Authorization", "Bearer " + token);
+        }
+        if (idempotencyKey != null) {
+            request = request.header("Idempotency-Key", idempotencyKey);
         }
         return request.exchange();
     }

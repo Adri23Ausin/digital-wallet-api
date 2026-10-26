@@ -1,5 +1,6 @@
 package com.adrianausin.wallet.application;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Currency;
@@ -9,6 +10,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import com.adrianausin.wallet.application.port.in.PageResult;
+import com.adrianausin.wallet.application.port.out.IdempotencyKeyRepository;
 import com.adrianausin.wallet.application.port.out.TransactionRepository;
 import com.adrianausin.wallet.application.port.out.UserRepository;
 import com.adrianausin.wallet.application.port.out.WalletRepository;
@@ -76,6 +78,28 @@ public final class InMemoryRepositories {
 
         private static Wallet copy(Wallet w) {
             return Wallet.restore(w.id(), w.ownerId(), w.currency(), w.balance(), w.createdAt(), w.version());
+        }
+    }
+
+    public static class IdempotencyKeys implements IdempotencyKeyRepository {
+
+        private final Map<String, String> fingerprints = new HashMap<>();
+        private final Map<String, TransactionId> transactionIds = new HashMap<>();
+
+        @Override
+        public boolean reserve(UserId userId, String key, String requestFingerprint, Instant now) {
+            return fingerprints.putIfAbsent(userId + "/" + key, requestFingerprint) == null;
+        }
+
+        @Override
+        public void complete(UserId userId, String key, TransactionId transactionId) {
+            transactionIds.put(userId + "/" + key, transactionId);
+        }
+
+        @Override
+        public Optional<StoredKey> find(UserId userId, String key) {
+            String id = userId + "/" + key;
+            return Optional.ofNullable(fingerprints.get(id)).map(f -> new StoredKey(f, transactionIds.get(id)));
         }
     }
 

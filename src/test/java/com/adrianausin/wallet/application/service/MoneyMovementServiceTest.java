@@ -5,10 +5,13 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Currency;
+import java.util.UUID;
 
+import com.adrianausin.wallet.application.IdempotencyKeyReusedException;
 import com.adrianausin.wallet.application.InMemoryRepositories;
 import com.adrianausin.wallet.application.WalletNotFoundException;
 import com.adrianausin.wallet.application.port.in.MoveMoneyUseCase.DepositCommand;
+import com.adrianausin.wallet.application.port.in.MoveMoneyUseCase.MovementResult;
 import com.adrianausin.wallet.application.port.in.MoveMoneyUseCase.TransferCommand;
 import com.adrianausin.wallet.application.port.in.MoveMoneyUseCase.WithdrawCommand;
 import com.adrianausin.wallet.domain.CurrencyMismatchException;
@@ -41,7 +44,7 @@ class MoneyMovementServiceTest {
     void setUp() {
         wallets = new InMemoryRepositories.Wallets();
         transactions = new InMemoryRepositories.Transactions();
-        service = new MoneyMovementService(wallets, transactions, CLOCK);
+        service = new MoneyMovementService(wallets, transactions, new InMemoryRepositories.IdempotencyKeys(), CLOCK);
         walletService = new WalletService(wallets, transactions, CLOCK);
     }
 
@@ -49,9 +52,10 @@ class MoneyMovementServiceTest {
     void depositCreditsTheWallet() {
         Wallet wallet = walletService.open(alice, Currency.getInstance("EUR"));
 
-        Transaction tx = service.deposit(new DepositCommand(alice, wallet.id(), new BigDecimal("150.25")));
+        MovementResult result = service.deposit(new DepositCommand(alice, key(), wallet.id(), new BigDecimal("150.25")));
 
-        assertThat(tx).isInstanceOf(Transaction.Deposit.class);
+        assertThat(result.transaction()).isInstanceOf(Transaction.Deposit.class);
+        assertThat(result.replayed()).isFalse();
         assertThat(balanceOf(wallet.id())).isEqualTo(Money.of("150.25", "EUR"));
         assertThat(transactions.entries()).singleElement()
                 .extracting(LedgerEntry::type).isEqualTo(LedgerEntry.Type.CREDIT);
@@ -61,7 +65,7 @@ class MoneyMovementServiceTest {
     void withdrawalDebitsTheWallet() {
         WalletId wallet = fundedWallet(alice, "EUR", "100");
 
-        service.withdraw(new WithdrawCommand(alice, wallet, new BigDecimal("40")));
+        service.withdraw(new WithdrawCommand(alice, key(), wallet, new BigDecimal("40")));
 
         assertThat(balanceOf(wallet)).isEqualTo(Money.of("60", "EUR"));
     }
@@ -70,7 +74,7 @@ class MoneyMovementServiceTest {
     void cannotWithdrawMoreThanTheBalance() {
         WalletId wallet = fundedWallet(alice, "EUR", "100");
 
-        assertThatThrownBy(() -> service.withdraw(new WithdrawCommand(alice, wallet, new BigDecimal("100.01"))))
+        assertThatThrownBy(() -> service.withdraw(new WithdrawCommand(alice, key(), wallet, new BigDecimal("100.01"))))
                 .isInstanceOf(InsufficientFundsException.class);
         assertThat(balanceOf(wallet)).isEqualTo(Money.of("100", "EUR"));
     }
@@ -80,7 +84,8 @@ class MoneyMovementServiceTest {
         WalletId source = fundedWallet(alice, "EUR", "100");
         WalletId target = walletService.open(bob, Currency.getInstance("EUR")).id();
 
-        Transaction tx = service.transfer(new TransferCommand(alice, source, target, new BigDecimal("25.50"), "Dinner"));
+        Transaction tx = service.transfer(new TransferCommand(alice, key(), source, target, new BigDecimal("25.50"),
+                "Dinner")).transaction();
 
         assertThat(balanceOf(source)).isEqualTo(Money.of("74.50", "EUR"));
         assertThat(balanceOf(target)).isEqualTo(Money.of("25.50", "EUR"));
@@ -94,8 +99,8 @@ class MoneyMovementServiceTest {
         WalletId source = fundedWallet(alice, "EUR", "100");
         WalletId target = walletService.open(bob, Currency.getInstance("USD")).id();
 
-        assertThatThrownBy(() -> service.transfer(new TransferCommand(alice, source, target, BigDecimal.TEN, null)))
-                .isInstanceOf(CurrencyMismatchException.class);
+        assertThatThrownBy(() -> service.transfer(new TransferCommand(alice, key(), source, target, BigDecimal.TEN,
+                null))).isInstanceOf(CurrencyMismatchException.class);
     }
 
     @Test
@@ -103,19 +108,63 @@ class MoneyMovementServiceTest {
         WalletId bobsWallet = fundedWallet(bob, "EUR", "100");
         WalletId alicesWallet = walletService.open(alice, Currency.getInstance("EUR")).id();
 
-        assertThatThrownBy(() -> service.withdraw(new WithdrawCommand(alice, bobsWallet, BigDecimal.ONE)))
+        assertThatThrownBy(() -> service.withdraw(new WithdrawCommand(alice, key(), bobsWallet, BigDecimal.ONE)))
                 .isInstanceOf(WalletNotFoundException.class);
-        assertThatThrownBy(() -> service.transfer(new TransferCommand(alice, bobsWallet, alicesWallet, BigDecimal.ONE,
-                null))).isInstanceOf(WalletNotFoundException.class);
+        assertThatThrownBy(() -> service.transfer(new TransferCommand(alice, key(), bobsWallet, alicesWallet,
+                BigDecimal.ONE, null))).isInstanceOf(WalletNotFoundException.class);
+    }
+
+    @Test
+    void repeatingARequestWithTheSameKeyDoesNotMoveMoneyTwice() {
+        WalletId wallet = fundedWallet(alice, "EUR", "100");
+        WithdrawCommand command = new WithdrawCommand(alice, "retry-me-123", wallet, new BigDecimal("30"));
+
+        MovementResult first = service.withdraw(command);
+        MovementResult retry = service.withdraw(command);
+
+        assertThat(retry.replayed()).isTrue();
+        assertThat(retry.transaction()).isEqualTo(first.transaction());
+        assertThat(balanceOf(wallet)).isEqualTo(Money.of("70", "EUR"));
+    }
+
+    @Test
+    void equivalentAmountsAreTheSameRequest() {
+        WalletId wallet = fundedWallet(alice, "EUR", "100");
+        service.withdraw(new WithdrawCommand(alice, "same-request", wallet, new BigDecimal("30")));
+
+        assertThat(service.withdraw(new WithdrawCommand(alice, "same-request", wallet, new BigDecimal("30.00")))
+                .replayed()).isTrue();
+    }
+
+    @Test
+    void reusingAKeyForADifferentRequestIsRejected() {
+        WalletId wallet = fundedWallet(alice, "EUR", "100");
+        service.withdraw(new WithdrawCommand(alice, "key-reused-1", wallet, new BigDecimal("30")));
+
+        assertThatThrownBy(() -> service.withdraw(new WithdrawCommand(alice, "key-reused-1", wallet,
+                new BigDecimal("31")))).isInstanceOf(IdempotencyKeyReusedException.class);
+        assertThat(balanceOf(wallet)).isEqualTo(Money.of("70", "EUR"));
+    }
+
+    @Test
+    void keysAreScopedPerUser() {
+        WalletId alicesWallet = fundedWallet(alice, "EUR", "100");
+        WalletId bobsWallet = fundedWallet(bob, "EUR", "100");
+
+        service.withdraw(new WithdrawCommand(alice, "shared-key", alicesWallet, BigDecimal.TEN));
+        MovementResult bobs = service.withdraw(new WithdrawCommand(bob, "shared-key", bobsWallet, BigDecimal.TEN));
+
+        assertThat(bobs.replayed()).isFalse();
+        assertThat(balanceOf(bobsWallet)).isEqualTo(Money.of("90", "EUR"));
     }
 
     @Test
     void balanceAlwaysMatchesTheLedger() {
         WalletId source = fundedWallet(alice, "EUR", "500");
         WalletId target = walletService.open(bob, Currency.getInstance("EUR")).id();
-        service.transfer(new TransferCommand(alice, source, target, new BigDecimal("120"), null));
-        service.withdraw(new WithdrawCommand(alice, source, new BigDecimal("80.40")));
-        service.deposit(new DepositCommand(alice, source, new BigDecimal("0.40")));
+        service.transfer(new TransferCommand(alice, key(), source, target, new BigDecimal("120"), null));
+        service.withdraw(new WithdrawCommand(alice, key(), source, new BigDecimal("80.40")));
+        service.deposit(new DepositCommand(alice, key(), source, new BigDecimal("0.40")));
 
         for (WalletId wallet : new WalletId[] {source, target}) {
             BigDecimal fromLedger = transactions.entries().stream()
@@ -128,11 +177,15 @@ class MoneyMovementServiceTest {
 
     private WalletId fundedWallet(UserId owner, String currency, String amount) {
         Wallet wallet = walletService.open(owner, Currency.getInstance(currency));
-        service.deposit(new DepositCommand(owner, wallet.id(), new BigDecimal(amount)));
+        service.deposit(new DepositCommand(owner, key(), wallet.id(), new BigDecimal(amount)));
         return wallet.id();
     }
 
     private Money balanceOf(WalletId id) {
         return wallets.findById(id).orElseThrow().balance();
+    }
+
+    private static String key() {
+        return UUID.randomUUID().toString();
     }
 }
