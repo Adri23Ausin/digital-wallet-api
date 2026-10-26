@@ -18,6 +18,14 @@ spring:
   flyway:
     enabled: true
 
+wallet:
+  security:
+    jwt:
+      # Development-only key. Always set JWT_SECRET (base64, >= 256 bits) outside your machine.
+      secret: ${JWT_SECRET:BUCDjivWWgoiQOH7TZnw+u7eY7IbdwSrsX8CzYlOXm8=}
+      issuer: digital-wallet-api
+      ttl: 15m
+
 management:
   endpoints:
     web:
