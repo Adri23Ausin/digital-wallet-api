@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: digital-wallet-api
+  threads:
+    virtual:
+      enabled: true
+  mvc:
+    problemdetails:
+      enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
