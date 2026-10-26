@@ -1,0 +1,54 @@
+### Register
+POST http://localhost:8080/api/v1/auth/register
+Content-Type: application/json
+
+{"email": "ana@example.com", "fullName": "Ana García", "password": "correct-horse-battery"}
+
+### Log in and keep the token
+POST http://localhost:8080/api/v1/auth/login
+Content-Type: application/json
+
+{"email": "ana@example.com", "password": "correct-horse-battery"}
+
+> {% client.global.set("token", response.body.accessToken); %}
+
+### Open a EUR wallet
+POST http://localhost:8080/api/v1/wallets
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"currency": "EUR"}
+
+> {% client.global.set("wallet", response.body.id); %}
+
+### Deposit (send it twice: the second response has Idempotent-Replayed: true)
+POST http://localhost:8080/api/v1/wallets/{{wallet}}/deposits
+Authorization: Bearer {{token}}
+Idempotency-Key: deposit-2026-10-26-001
+Content-Type: application/json
+
+{"amount": 250.00}
+
+### Withdraw
+POST http://localhost:8080/api/v1/wallets/{{wallet}}/withdrawals
+Authorization: Bearer {{token}}
+Idempotency-Key: withdrawal-2026-10-26-001
+Content-Type: application/json
+
+{"amount": 40.50}
+
+### Transfer to another wallet (same currency)
+POST http://localhost:8080/api/v1/transfers
+Authorization: Bearer {{token}}
+Idempotency-Key: transfer-2026-10-26-001
+Content-Type: application/json
+
+{"sourceWalletId": "{{wallet}}", "targetWalletId": "00000000-0000-0000-0000-000000000000", "amount": 10, "description": "Dinner"}
+
+### My wallets
+GET http://localhost:8080/api/v1/wallets
+Authorization: Bearer {{token}}
+
+### Ledger, newest first
+GET http://localhost:8080/api/v1/wallets/{{wallet}}/transactions?page=0&size=20
+Authorization: Bearer {{token}}

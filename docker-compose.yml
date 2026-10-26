@@ -15,5 +15,27 @@ services:
       timeout: 3s
       retries: 10
 
+  wallet-api:
+    build: .
+    image: digital-wallet-api:latest
+    profiles: ["app"]
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/wallet
+      DB_USERNAME: wallet
+      DB_PASSWORD: wallet
+      # Demo value only: generate your own with `openssl rand -base64 32`
+      JWT_SECRET: ${JWT_SECRET:-c2VjcmV0LWtleS1mb3ItbG9jYWwtZG9ja2VyLWRlbW8tMDE=}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+
 volumes:
   wallet-data:
