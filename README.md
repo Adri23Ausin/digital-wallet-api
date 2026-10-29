@@ -6,6 +6,8 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
+**English** | [Español](README.es.md)
+
 A multi-currency digital wallet REST API: users open wallets, deposit, withdraw and send money to each other. It is built around the hard parts of moving money: **amounts that never lose a cent, balances that can't go negative, requests that are safe to retry, and concurrent updates that never corrupt a balance**. The code follows a hexagonal architecture enforced by tests.
 
 ### Author: Adrián Ausín Cuesta

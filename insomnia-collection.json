@@ -1,0 +1,869 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-10-26T11:46:17.492Z",
+  "__export_source": "insomnia.desktop.app:v10.0.0",
+  "resources": [
+    {
+      "_id": "wrk_digital_wallet",
+      "_type": "workspace",
+      "parentId": null,
+      "name": "Digital Wallet API",
+      "scope": "collection",
+      "description": "Colección para digital-wallet-api. Ejecuta las peticiones de \"0 · Setup\" en orden; el token y los ids de wallet se encadenan solos.",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "env_base",
+      "_type": "environment",
+      "parentId": "wrk_digital_wallet",
+      "name": "Base Environment",
+      "isPrivate": false,
+      "data": {
+        "base_url": "http://localhost:8080",
+        "ana_email": "ana@example.com",
+        "ana_password": "correct-horse-battery",
+        "ana_name": "Ana García",
+        "bob_email": "bob@example.com",
+        "bob_password": "correct-horse-battery",
+        "bob_name": "Bob Smith",
+        "currency": "EUR",
+        "token_ana": "{% response 'body', 'req_login_ana', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 840 %}",
+        "token_bob": "{% response 'body', 'req_login_bob', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 840 %}",
+        "wallet_ana": "{% response 'body', 'req_list_wallets_ana', 'b64::JFs/KEAuY3VycmVuY3k9PSdFVVInKV0uaWQ=::46b', 'always', 60 %}",
+        "wallet_bob": "{% response 'body', 'req_list_wallets_bob', 'b64::JFs/KEAuY3VycmVuY3k9PSdFVVInKV0uaWQ=::46b', 'always', 60 %}"
+      },
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "env_docker",
+      "_type": "environment",
+      "parentId": "env_base",
+      "name": "Local (localhost:8080)",
+      "isPrivate": false,
+      "data": {
+        "base_url": "http://localhost:8080"
+      },
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "fld_setup",
+      "_type": "request_group",
+      "parentId": "wrk_digital_wallet",
+      "name": "0 · Setup",
+      "description": "Registra a Ana y Bob, inicia sesión y abre una wallet EUR para cada uno. Si ya existen, register/open devuelven 409: es normal.",
+      "metaSortKey": 0,
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_register_ana",
+      "_type": "request",
+      "parentId": "fld_setup",
+      "name": "Register Ana",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/auth/register",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.ana_email }}\",\n  \"fullName\": \"{{ _.ana_name }}\",\n  \"password\": \"{{ _.ana_password }}\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "description": "",
+      "metaSortKey": 1,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_register_bob",
+      "_type": "request",
+      "parentId": "fld_setup",
+      "name": "Register Bob",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/auth/register",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.bob_email }}\",\n  \"fullName\": \"{{ _.bob_name }}\",\n  \"password\": \"{{ _.bob_password }}\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "description": "",
+      "metaSortKey": 2,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_open_wallet_ana",
+      "_type": "request",
+      "parentId": "fld_setup",
+      "name": "Open EUR wallet (Ana)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/wallets",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"currency\": \"{{ _.currency }}\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_ana }}",
+        "prefix": "Bearer"
+      },
+      "description": "",
+      "metaSortKey": 3,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_open_wallet_bob",
+      "_type": "request",
+      "parentId": "fld_setup",
+      "name": "Open EUR wallet (Bob)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/wallets",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"currency\": \"{{ _.currency }}\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_bob }}",
+        "prefix": "Bearer"
+      },
+      "description": "",
+      "metaSortKey": 4,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "fld_auth",
+      "_type": "request_group",
+      "parentId": "wrk_digital_wallet",
+      "name": "Auth",
+      "description": "Endpoints públicos. El token dura 15 minutos; las variables token_ana/token_bob vuelven a hacer login solas.",
+      "metaSortKey": 5,
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_login_ana",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Login Ana",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/auth/login",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.ana_email }}\",\n  \"password\": \"{{ _.ana_password }}\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "description": "",
+      "metaSortKey": 6,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_login_bob",
+      "_type": "request",
+      "parentId": "fld_auth",
+      "name": "Login Bob",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/auth/login",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.bob_email }}\",\n  \"password\": \"{{ _.bob_password }}\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "description": "",
+      "metaSortKey": 7,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "fld_wallets",
+      "_type": "request_group",
+      "parentId": "wrk_digital_wallet",
+      "name": "Wallets",
+      "description": "Una wallet por divisa y usuario. Las wallets de otros usuarios responden 404.",
+      "metaSortKey": 8,
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_list_wallets_ana",
+      "_type": "request",
+      "parentId": "fld_wallets",
+      "name": "List my wallets (Ana)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/wallets",
+      "body": {},
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_ana }}",
+        "prefix": "Bearer"
+      },
+      "description": "",
+      "metaSortKey": 9,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_list_wallets_bob",
+      "_type": "request",
+      "parentId": "fld_wallets",
+      "name": "List my wallets (Bob)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/wallets",
+      "body": {},
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_bob }}",
+        "prefix": "Bearer"
+      },
+      "description": "",
+      "metaSortKey": 10,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_get_wallet_ana",
+      "_type": "request",
+      "parentId": "fld_wallets",
+      "name": "Get wallet (Ana)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/wallets/{{ _.wallet_ana }}",
+      "body": {},
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_ana }}",
+        "prefix": "Bearer"
+      },
+      "description": "",
+      "metaSortKey": 11,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_history_ana",
+      "_type": "request",
+      "parentId": "fld_wallets",
+      "name": "Ledger history (Ana)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/wallets/{{ _.wallet_ana }}/transactions",
+      "body": {},
+      "headers": [],
+      "parameters": [
+        {
+          "name": "page",
+          "value": "0"
+        },
+        {
+          "name": "size",
+          "value": "20"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_ana }}",
+        "prefix": "Bearer"
+      },
+      "description": "Movimientos del ledger, más recientes primero. size entre 1 y 100.",
+      "metaSortKey": 12,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_history_bob",
+      "_type": "request",
+      "parentId": "fld_wallets",
+      "name": "Ledger history (Bob)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/wallets/{{ _.wallet_bob }}/transactions",
+      "body": {},
+      "headers": [],
+      "parameters": [
+        {
+          "name": "page",
+          "value": "0"
+        },
+        {
+          "name": "size",
+          "value": "20"
+        }
+      ],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_bob }}",
+        "prefix": "Bearer"
+      },
+      "description": "",
+      "metaSortKey": 13,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "fld_money",
+      "_type": "request_group",
+      "parentId": "wrk_digital_wallet",
+      "name": "Money movements",
+      "description": "Todas requieren Idempotency-Key ([A-Za-z0-9_-]{8,64}). Aquí se genera un UUID nuevo en cada envío.",
+      "metaSortKey": 14,
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_deposit",
+      "_type": "request",
+      "parentId": "fld_money",
+      "name": "Deposit (Ana)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/wallets/{{ _.wallet_ana }}/deposits",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"amount\": 250\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{% uuid 'v4' %}"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_ana }}",
+        "prefix": "Bearer"
+      },
+      "description": "",
+      "metaSortKey": 15,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_withdraw",
+      "_type": "request",
+      "parentId": "fld_money",
+      "name": "Withdraw (Ana)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/wallets/{{ _.wallet_ana }}/withdrawals",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"amount\": 40.5\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{% uuid 'v4' %}"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_ana }}",
+        "prefix": "Bearer"
+      },
+      "description": "",
+      "metaSortKey": 16,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_transfer",
+      "_type": "request",
+      "parentId": "fld_money",
+      "name": "Transfer Ana → Bob",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/transfers",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"sourceWalletId\": \"{{ _.wallet_ana }}\",\n  \"targetWalletId\": \"{{ _.wallet_bob }}\",\n  \"amount\": 10,\n  \"description\": \"Dinner\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{% uuid 'v4' %}"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_ana }}",
+        "prefix": "Bearer"
+      },
+      "description": "",
+      "metaSortKey": 17,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_deposit_fixed",
+      "_type": "request",
+      "parentId": "fld_money",
+      "name": "Deposit with fixed key (replay)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/wallets/{{ _.wallet_ana }}/deposits",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"amount\": 5\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "deposit-replay-demo-001"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_ana }}",
+        "prefix": "Bearer"
+      },
+      "description": "Envíala dos veces: la segunda devuelve la misma transacción con la cabecera Idempotent-Replayed: true y el saldo no cambia.",
+      "metaSortKey": 18,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "fld_errors",
+      "_type": "request_group",
+      "parentId": "wrk_digital_wallet",
+      "name": "Error cases",
+      "description": "Respuestas de error en formato RFC 9457 (problem details).",
+      "metaSortKey": 19,
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_err_login",
+      "_type": "request",
+      "parentId": "fld_errors",
+      "name": "401 · Wrong password",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/auth/login",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"{{ _.ana_email }}\",\n  \"password\": \"wrong-password\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "description": "",
+      "metaSortKey": 20,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_err_no_token",
+      "_type": "request",
+      "parentId": "fld_errors",
+      "name": "401 · No token",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/wallets",
+      "body": {},
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "description": "",
+      "metaSortKey": 21,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_err_duplicate_wallet",
+      "_type": "request",
+      "parentId": "fld_errors",
+      "name": "409 · Wallet already exists",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/wallets",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"currency\": \"{{ _.currency }}\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_ana }}",
+        "prefix": "Bearer"
+      },
+      "description": "",
+      "metaSortKey": 22,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_err_currency",
+      "_type": "request",
+      "parentId": "fld_errors",
+      "name": "400 · Unknown currency",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/wallets",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"currency\": \"XYZ\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_ana }}",
+        "prefix": "Bearer"
+      },
+      "description": "",
+      "metaSortKey": 23,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_err_foreign_wallet",
+      "_type": "request",
+      "parentId": "fld_errors",
+      "name": "404 · Someone else's wallet",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/wallets/{{ _.wallet_bob }}",
+      "body": {},
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_ana }}",
+        "prefix": "Bearer"
+      },
+      "description": "Ana pide la wallet de Bob: 404, para que no se puedan sondear ids.",
+      "metaSortKey": 24,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_err_funds",
+      "_type": "request",
+      "parentId": "fld_errors",
+      "name": "422 · Insufficient funds",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/wallets/{{ _.wallet_ana }}/withdrawals",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"amount\": 999999999\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{% uuid 'v4' %}"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_ana }}",
+        "prefix": "Bearer"
+      },
+      "description": "",
+      "metaSortKey": 25,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_err_key_reused",
+      "_type": "request",
+      "parentId": "fld_errors",
+      "name": "422 · Idempotency key reused with another body",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/wallets/{{ _.wallet_ana }}/deposits",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"amount\": 6\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "deposit-replay-demo-001"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_ana }}",
+        "prefix": "Bearer"
+      },
+      "description": "Lanza antes \"Deposit with fixed key (replay)\". Misma clave, importe distinto.",
+      "metaSortKey": 26,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_err_missing_key",
+      "_type": "request",
+      "parentId": "fld_errors",
+      "name": "400 · Missing Idempotency-Key",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/wallets/{{ _.wallet_ana }}/deposits",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"amount\": 1\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_ana }}",
+        "prefix": "Bearer"
+      },
+      "description": "",
+      "metaSortKey": 27,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_err_amount",
+      "_type": "request",
+      "parentId": "fld_errors",
+      "name": "400 · Negative amount",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/wallets/{{ _.wallet_ana }}/deposits",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"amount\": -5\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{% uuid 'v4' %}"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_ana }}",
+        "prefix": "Bearer"
+      },
+      "description": "",
+      "metaSortKey": 28,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_err_self_transfer",
+      "_type": "request",
+      "parentId": "fld_errors",
+      "name": "400 · Transfer to same wallet",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/transfers",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"sourceWalletId\": \"{{ _.wallet_ana }}\",\n  \"targetWalletId\": \"{{ _.wallet_ana }}\",\n  \"amount\": 1\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{% uuid 'v4' %}"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_ana }}",
+        "prefix": "Bearer"
+      },
+      "description": "",
+      "metaSortKey": 29,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "fld_ops",
+      "_type": "request_group",
+      "parentId": "wrk_digital_wallet",
+      "name": "Ops",
+      "description": "Health y documentación OpenAPI (públicos).",
+      "metaSortKey": 30,
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_health",
+      "_type": "request",
+      "parentId": "fld_ops",
+      "name": "Health",
+      "method": "GET",
+      "url": "{{ _.base_url }}/actuator/health",
+      "body": {},
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "description": "",
+      "metaSortKey": 31,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_openapi",
+      "_type": "request",
+      "parentId": "fld_ops",
+      "name": "OpenAPI spec",
+      "method": "GET",
+      "url": "{{ _.base_url }}/v3/api-docs",
+      "body": {},
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "description": "",
+      "metaSortKey": 32,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    }
+  ]
+}
