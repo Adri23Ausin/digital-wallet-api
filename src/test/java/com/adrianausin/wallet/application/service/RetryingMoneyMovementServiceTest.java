@@ -92,5 +92,10 @@ class RetryingMoneyMovementServiceTest {
         public MovementResult transfer(TransferCommand command) {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public MovementResult convert(ConvertCommand command) {
+            throw new UnsupportedOperationException();
+        }
     }
 }

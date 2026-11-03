@@ -27,6 +27,11 @@ services:
       DB_PASSWORD: wallet
       # Demo value only: generate your own with `openssl rand -base64 32`
       JWT_SECRET: ${JWT_SECRET:-c2VjcmV0LWtleS1mb3ItbG9jYWwtZG9ja2VyLWRlbW8tMDE=}
+      # fx-rate-service for conversions; by default the one running on the host on port 8022
+      FX_RATE_URL: ${FX_RATE_URL:-http://host.docker.internal:8022}
+    extra_hosts:
+      # Makes host.docker.internal resolve on Linux too
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy

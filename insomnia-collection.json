@@ -32,7 +32,9 @@
         "token_ana": "{% response 'body', 'req_login_ana', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 840 %}",
         "token_bob": "{% response 'body', 'req_login_bob', 'b64::JC5hY2Nlc3NUb2tlbg==::46b', 'when-expired', 840 %}",
         "wallet_ana": "{% response 'body', 'req_list_wallets_ana', 'b64::JFs/KEAuY3VycmVuY3k9PSdFVVInKV0uaWQ=::46b', 'always', 60 %}",
-        "wallet_bob": "{% response 'body', 'req_list_wallets_bob', 'b64::JFs/KEAuY3VycmVuY3k9PSdFVVInKV0uaWQ=::46b', 'always', 60 %}"
+        "wallet_ana_usd": "{% response 'body', 'req_list_wallets_ana', 'b64::JFs/KEAuY3VycmVuY3k9PSdVU0QnKV0uaWQ=::46b', 'always', 60 %}",
+        "wallet_bob": "{% response 'body', 'req_list_wallets_bob', 'b64::JFs/KEAuY3VycmVuY3k9PSdFVVInKV0uaWQ=::46b', 'always', 60 %}",
+        "conversion_id": "{% response 'body', 'req_convert', 'b64::JC5pZA==::46b', 'never', 60 %}"
       },
       "created": 1793015177492,
       "modified": 1793015177492
@@ -136,6 +138,36 @@
       },
       "description": "",
       "metaSortKey": 3,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_open_wallet_ana_usd",
+      "_type": "request",
+      "parentId": "fld_setup",
+      "name": "Open USD wallet (Ana)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/wallets",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"currency\": \"USD\"\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_ana }}",
+        "prefix": "Bearer"
+      },
+      "description": "",
+      "metaSortKey": 3.5,
       "settingEncodeUrl": true,
       "settingFollowRedirects": "global",
       "created": 1793015177492,
@@ -478,6 +510,62 @@
       },
       "description": "",
       "metaSortKey": 17,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_convert",
+      "_type": "request",
+      "parentId": "fld_money",
+      "name": "Convert EUR → USD (Ana)",
+      "method": "POST",
+      "url": "{{ _.base_url }}/api/v1/conversions",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"sourceWalletId\": \"{{ _.wallet_ana }}\",\n  \"targetWalletId\": \"{{ _.wallet_ana_usd }}\",\n  \"amount\": 10\n}"
+      },
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Idempotency-Key",
+          "value": "{% uuid 'v4' %}"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_ana }}",
+        "prefix": "Bearer"
+      },
+      "description": "Needs fx-rate-service running at FX_RATE_URL. The response shows the rate used.",
+      "metaSortKey": 17.5,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "created": 1793015177492,
+      "modified": 1793015177492
+    },
+    {
+      "_id": "req_get_conversion",
+      "_type": "request",
+      "parentId": "fld_money",
+      "name": "Get the conversion (Ana)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/api/v1/transactions/{{ _.conversion_id }}",
+      "body": {},
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.token_ana }}",
+        "prefix": "Bearer"
+      },
+      "description": "",
+      "metaSortKey": 17.6,
       "settingEncodeUrl": true,
       "settingFollowRedirects": "global",
       "created": 1793015177492,

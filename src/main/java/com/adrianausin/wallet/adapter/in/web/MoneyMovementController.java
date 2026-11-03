@@ -3,9 +3,11 @@ package com.adrianausin.wallet.adapter.in.web;
 import java.util.UUID;
 
 import com.adrianausin.wallet.adapter.in.web.WalletDtos.AmountRequest;
+import com.adrianausin.wallet.adapter.in.web.WalletDtos.ConversionRequest;
 import com.adrianausin.wallet.adapter.in.web.WalletDtos.TransactionResponse;
 import com.adrianausin.wallet.adapter.in.web.WalletDtos.TransferRequest;
 import com.adrianausin.wallet.application.port.in.MoveMoneyUseCase;
+import com.adrianausin.wallet.application.port.in.MoveMoneyUseCase.ConvertCommand;
 import com.adrianausin.wallet.application.port.in.MoveMoneyUseCase.DepositCommand;
 import com.adrianausin.wallet.application.port.in.MoveMoneyUseCase.MovementResult;
 import com.adrianausin.wallet.application.port.in.MoveMoneyUseCase.TransferCommand;
@@ -79,6 +81,16 @@ class MoneyMovementController {
         return respond(moveMoney.transfer(new TransferCommand(CurrentUser.of(jwt), idempotencyKey,
                 new WalletId(request.sourceWalletId()), new WalletId(request.targetWalletId()), request.amount(),
                 request.description())));
+    }
+
+    @PostMapping("/conversions")
+    @Operation(summary = "Convert money between two of your wallets in different currencies, at the latest rate")
+    ResponseEntity<TransactionResponse> convert(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader(IDEMPOTENCY_KEY) @Pattern(regexp = KEY_FORMAT) String idempotencyKey,
+            @Valid @RequestBody ConversionRequest request) {
+        return respond(moveMoney.convert(new ConvertCommand(CurrentUser.of(jwt), idempotencyKey,
+                new WalletId(request.sourceWalletId()), new WalletId(request.targetWalletId()), request.amount())));
     }
 
     private static ResponseEntity<TransactionResponse> respond(MovementResult result) {

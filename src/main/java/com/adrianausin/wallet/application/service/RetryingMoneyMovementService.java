@@ -62,6 +62,11 @@ class RetryingMoneyMovementService implements MoveMoneyUseCase {
         return withRetries(() -> delegate.transfer(command));
     }
 
+    @Override
+    public MovementResult convert(ConvertCommand command) {
+        return withRetries(() -> delegate.convert(command));
+    }
+
     private MovementResult withRetries(Supplier<MovementResult> operation) {
         return retryTemplate.invoke(operation);
     }

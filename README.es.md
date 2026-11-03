@@ -29,6 +29,7 @@ Una API REST de monedero digital multidivisa: los usuarios abren monederos, ingr
 - **Cuentas**: registro e inicio de sesión con contraseñas cifradas con BCrypt y tokens de acceso JWT de corta duración, renovados con refresh tokens de un solo uso que solo se guardan como hash.
 - **Monederos**: un monedero por divisa y usuario, en cualquier divisa ISO 4217.
 - **Movimientos de dinero**: ingresos, retiradas y transferencias entre usuarios, con un libro de movimientos de solo inserción (append-only) e historial paginado.
+- **Conversión de divisas**: mover dinero entre tus propios monederos en distintas divisas, al último tipo de cambio de [fx-rate-service](https://github.com/Adri23Ausin/fx-rate-service). El tipo y su fecha se guardan con la transacción.
 - **Idempotencia**: todo movimiento exige un `Idempotency-Key`, de modo que una petición reintentada nunca mueve el dinero dos veces.
 - **Seguridad ante concurrencia**: bloqueo optimista con reintentos automáticos, ordenación libre de interbloqueos y restricciones de base de datos como última línea de defensa.
 - **Privacidad por defecto**: los monederos de otros usuarios responden `404`, así que no se pueden sondear identificadores de monedero.
@@ -110,6 +111,8 @@ docker compose up -d postgres
 ```
 
 > La clave de firma JWT de `application.yml` es solo para desarrollo local. En cualquier otro entorno define `JWT_SECRET` (en base64, al menos 256 bits, p. ej. `openssl rand -base64 32`).
+>
+> Las conversiones leen los tipos de fx-rate-service en `FX_RATE_URL` (por defecto `http://localhost:8022`; en Docker Compose, el puerto 8022 del host). Sin él, el resto de endpoints funciona y las conversiones responden `503`. Los tipos de cada divisa base se reutilizan durante un minuto (`wallet.fx-rate.cache-ttl`), así la API no supera el límite de peticiones de fx-rate-service.
 
 ## API
 
@@ -127,6 +130,8 @@ docker compose up -d postgres
 | `POST` | `/api/v1/wallets/{id}/deposits` | Ingresar `{"amount": 250.00}`, requiere `Idempotency-Key` |
 | `POST` | `/api/v1/wallets/{id}/withdrawals` | Retirar `{"amount": 40.50}`, requiere `Idempotency-Key` |
 | `POST` | `/api/v1/transfers` | Transferir a cualquier monedero de la misma divisa, requiere `Idempotency-Key` |
+| `POST` | `/api/v1/conversions` | Convertir entre dos de tus monederos en distintas divisas, requiere `Idempotency-Key` |
+| `GET` | `/api/v1/transactions/{id}` | Una transacción de uno de tus monederos, con el tipo de una conversión |
 
 ```bash
 TOKEN=$(curl -s -X POST localhost:8080/api/v1/auth/login -H 'Content-Type: application/json' \
@@ -198,7 +203,6 @@ Si se envía de nuevo la misma petición, se devuelve la misma transacción con 
 ## Posibles mejoras
 
 - Cierre de sesión y revocación de tokens.
-- Conversión de divisas entre monederos, usando un servicio de tipos de cambio como [fx-rate-service](https://github.com/Adri23Ausin/fx-rate-service).
 - Una tarea programada que elimine las claves de idempotencia con más de 24 horas.
 - Publicación de eventos de transacción (transactional outbox) para notificaciones y analítica.
 - Métricas y trazas con Micrometer y OpenTelemetry.

@@ -33,6 +33,14 @@ record Idempotency(IdempotencyKeyRepository keys, TransactionRepository transact
         return new MovementResult(transaction, false);
     }
 
+    /**
+     * Whether a request with this key already ran. Only a hint when called outside the
+     * transaction: the key may be reserved right after.
+     */
+    boolean isUsed(UserId userId, String key) {
+        return keys.find(userId, key).isPresent();
+    }
+
     private MovementResult replay(UserId userId, String key, String fingerprint) {
         StoredKey stored = keys.find(userId, key).orElseThrow();
         if (!stored.requestFingerprint().equals(fingerprint)) {

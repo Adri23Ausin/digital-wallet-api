@@ -19,6 +19,12 @@ public interface MoveMoneyUseCase {
     MovementResult transfer(TransferCommand command);
 
     /**
+     * Moves money between two of the user's own wallets in different currencies, at the latest
+     * exchange rate. A replayed conversion keeps its original rate.
+     */
+    MovementResult convert(ConvertCommand command);
+
+    /**
      * @param replayed {@code true} when the transaction was created by an earlier request with
      *                 the same idempotency key
      */
@@ -36,5 +42,12 @@ public interface MoveMoneyUseCase {
 
     record TransferCommand(UserId userId, String idempotencyKey, WalletId sourceWalletId, WalletId targetWalletId,
                            BigDecimal amount, String description) {
+    }
+
+    /**
+     * {@code amount} is in the currency of the source wallet.
+     */
+    record ConvertCommand(UserId userId, String idempotencyKey, WalletId sourceWalletId, WalletId targetWalletId,
+                          BigDecimal amount) {
     }
 }
