@@ -63,7 +63,7 @@
     {
       "id": "MM-01",
       "title": "Currency conversion between wallets",
-      "state": "doing",
+      "state": "review",
       "group": "MM",
       "at": "2026-11-03T08:02:39Z",
       "by": "claude-code",
@@ -78,6 +78,11 @@
           "at": "2026-11-03T08:10:53Z",
           "by": "claude-code",
           "text": "Plan: add a conversion movement (POST /api/v1/conversions) between two of the user's own wallets. Rate comes from fx-rate-service through a new outbound port; the rate and its date are stored on the transaction. Same idempotency and retry rules as transfers. Work on branch feat/currency-conversion (separate worktree, so SC-01's checkout is untouched)."
+        },
+        {
+          "at": "2026-11-03T08:21:34Z",
+          "by": "claude-code",
+          "text": "Users can now convert money between two of their own wallets in different currencies: `POST /api/v1/conversions` with `sourceWalletId`, `targetWalletId` and `amount` (in the source currency), plus an `Idempotency-Key` like every other movement.\n\n- The rate comes from fx-rate-service (`FX_RATE_URL`, default `http://localhost:8022`). The rate and its date are stored on the transaction and returned in a `conversion` block. Each wallet gets its own ledger entry: a DEBIT in the source currency and a CREDIT in the target currency.\n- Retrying with the same key returns the original conversion at its original rate, and the rate service is not called again.\n- Errors: someone else's wallet → 404; same currency in both wallets → 400 (use a transfer); a pair with no rate → 422; rate service down or slow (2 s) → 503.\n\nVerified: 55 unit tests and 29 integration tests against real PostgreSQL pass. They cover balanced ledgers, idempotent replays, rounding and errors. In the tests the rate service is replaced by fixed rates. I did not run it against a live fx-rate-service.\n\nDecisions for you to check:\n- Rounding: the converted amount is rounded half-even (banker's rounding) to the target currency's minor unit, e.g. EUR 10.01 at 175.51 → JPY 1757. A conversion that rounds to zero is rejected.\n- Stale rates are refused (503). fx-rate-service marks rates stale when its upstream is down and it serves the last known rates, which may be days old. Say if you'd rather accept them.\n- Code is on branch `feat/currency-conversion` in a separate worktree (`../digital-wallet-api-mm01`), uncommitted, so SC-01's checkout was not touched."
         }
       ],
       "started": {
