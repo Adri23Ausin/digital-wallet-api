@@ -29,6 +29,8 @@ wallet:
       secret: ${JWT_SECRET:BUCDjivWWgoiQOH7TZnw+u7eY7IbdwSrsX8CzYlOXm8=}
       issuer: digital-wallet-api
       ttl: 15m
+    refresh-token:
+      ttl: 7d
   fx-rate:
     # fx-rate-service (https://github.com/Adri23Ausin/fx-rate-service), used for currency conversions
     base-url: ${FX_RATE_URL:http://localhost:8022}

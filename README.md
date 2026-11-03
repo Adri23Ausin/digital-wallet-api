@@ -26,7 +26,7 @@ A multi-currency digital wallet REST API: users open wallets, deposit, withdraw 
 
 ## Features
 
-- **Accounts**: registration and login with BCrypt-hashed passwords and short-lived JWT access tokens.
+- **Accounts**: registration and login with BCrypt-hashed passwords and short-lived JWT access tokens, renewed with single-use refresh tokens that are stored only as hashes.
 - **Wallets**: one wallet per currency per user, any ISO 4217 currency.
 - **Money movements**: deposits, withdrawals and transfers between users, with an append-only ledger and paginated history.
 - **Currency conversion**: move money between your own wallets in different currencies, at the latest rate from [fx-rate-service](https://github.com/Adri23Ausin/fx-rate-service). The rate and its date are stored with the transaction.
@@ -121,7 +121,8 @@ docker compose up -d postgres
 | Method | Path | Description |
 |---|---|---|
 | `POST` | `/api/v1/auth/register` | Create an account |
-| `POST` | `/api/v1/auth/login` | Get an access token (15 min) |
+| `POST` | `/api/v1/auth/login` | Get an access token (15 min) and a refresh token (7 days) |
+| `POST` | `/api/v1/auth/refresh` | Exchange a refresh token for new tokens; each refresh token works once |
 | `POST` | `/api/v1/wallets` | Open a wallet `{"currency": "EUR"}` |
 | `GET` | `/api/v1/wallets` | List your wallets |
 | `GET` | `/api/v1/wallets/{id}` | Get one of your wallets |
@@ -153,7 +154,7 @@ Sending the same request again returns the same transaction with `Idempotent-Rep
 | Status | When |
 |---|---|
 | `400` | Validation errors, unknown currency, more decimals than the currency allows, missing `Idempotency-Key` |
-| `401` | Missing, expired or tampered token, or wrong credentials |
+| `401` | Missing, expired or tampered token, wrong credentials, or an invalid, used or expired refresh token |
 | `404` | The wallet doesn't exist **or belongs to someone else** |
 | `409` | Duplicate email or wallet, or a wallet still contended after all retries (retry with the same key) |
 | `422` | Insufficient funds, currency mismatch, `Idempotency-Key` reused with a different body |
@@ -201,7 +202,7 @@ Sending the same request again returns the same transaction with `Idempotent-Rep
 
 ## Possible improvements
 
-- Refresh tokens and token revocation.
+- Logout and token revocation.
 - A scheduled job that deletes idempotency keys older than 24 hours.
 - Publishing transaction events (transactional outbox) for notifications and analytics.
 - Metrics and tracing with Micrometer and OpenTelemetry.

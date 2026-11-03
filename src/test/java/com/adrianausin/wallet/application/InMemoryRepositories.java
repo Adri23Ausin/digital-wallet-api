@@ -7,15 +7,18 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Currency;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.adrianausin.wallet.application.port.in.PageResult;
 import com.adrianausin.wallet.application.port.out.ExchangeRateProvider;
 import com.adrianausin.wallet.application.port.out.IdempotencyKeyRepository;
+import com.adrianausin.wallet.application.port.out.RefreshTokenRepository;
 import com.adrianausin.wallet.application.port.out.TransactionRepository;
 import com.adrianausin.wallet.application.port.out.UserRepository;
 import com.adrianausin.wallet.application.port.out.WalletRepository;
@@ -44,6 +47,11 @@ public final class InMemoryRepositories {
         @Override
         public boolean existsByEmail(String email) {
             return byEmail.containsKey(email);
+        }
+
+        @Override
+        public Optional<User> findById(UserId id) {
+            return byEmail.values().stream().filter(u -> u.id().equals(id)).findFirst();
         }
 
         @Override
@@ -106,6 +114,29 @@ public final class InMemoryRepositories {
         public Optional<StoredKey> find(UserId userId, String key) {
             String id = userId + "/" + key;
             return Optional.ofNullable(fingerprints.get(id)).map(f -> new StoredKey(f, transactionIds.get(id)));
+        }
+    }
+
+    public static class RefreshTokens implements RefreshTokenRepository {
+
+        private final Map<String, NewRefreshToken> tokens = new HashMap<>();
+        private final Set<String> used = new HashSet<>();
+
+        @Override
+        public void save(NewRefreshToken token) {
+            tokens.put(token.tokenHash(), token);
+        }
+
+        @Override
+        public Optional<UserId> consume(String tokenHash, Instant now) {
+            return Optional.ofNullable(tokens.get(tokenHash))
+                    .filter(t -> t.expiresAt().isAfter(now))
+                    .filter(t -> used.add(tokenHash))
+                    .map(NewRefreshToken::userId);
+        }
+
+        public Set<String> storedHashes() {
+            return Set.copyOf(tokens.keySet());
         }
     }
 

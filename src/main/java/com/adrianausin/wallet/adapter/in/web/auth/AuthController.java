@@ -4,6 +4,8 @@ import java.util.UUID;
 
 import com.adrianausin.wallet.adapter.in.web.auth.TokenIssuer.TokenResponse;
 import com.adrianausin.wallet.application.port.in.AuthenticateUserUseCase;
+import com.adrianausin.wallet.application.port.in.RefreshTokenUseCase;
+import com.adrianausin.wallet.application.port.in.RefreshTokenUseCase.Rotation;
 import com.adrianausin.wallet.application.port.in.RegisterUserUseCase;
 import com.adrianausin.wallet.application.port.in.RegisterUserUseCase.RegisterUserCommand;
 import com.adrianausin.wallet.domain.User;
@@ -27,12 +29,14 @@ class AuthController {
 
     private final RegisterUserUseCase registerUser;
     private final AuthenticateUserUseCase authenticateUser;
+    private final RefreshTokenUseCase refreshTokens;
     private final TokenIssuer tokenIssuer;
 
     AuthController(RegisterUserUseCase registerUser, AuthenticateUserUseCase authenticateUser,
-                   TokenIssuer tokenIssuer) {
+                   RefreshTokenUseCase refreshTokens, TokenIssuer tokenIssuer) {
         this.registerUser = registerUser;
         this.authenticateUser = authenticateUser;
+        this.refreshTokens = refreshTokens;
         this.tokenIssuer = tokenIssuer;
     }
 
@@ -46,9 +50,17 @@ class AuthController {
     }
 
     @PostMapping("/login")
-    @Operation(summary = "Exchange credentials for a short-lived access token")
+    @Operation(summary = "Exchange credentials for a short-lived access token and a refresh token")
     TokenResponse login(@Valid @RequestBody LoginRequest request) {
-        return tokenIssuer.issue(authenticateUser.authenticate(request.email(), request.password()));
+        User user = authenticateUser.authenticate(request.email(), request.password());
+        return tokenIssuer.issue(user, refreshTokens.issue(user.id()));
+    }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "Exchange a refresh token for new tokens; the refresh token can't be used again")
+    TokenResponse refresh(@Valid @RequestBody RefreshRequest request) {
+        Rotation rotation = refreshTokens.rotate(request.refreshToken());
+        return tokenIssuer.issue(rotation.user(), rotation.refreshToken());
     }
 
     record RegisterRequest(
@@ -59,6 +71,9 @@ class AuthController {
     }
 
     record LoginRequest(@NotBlank String email, @NotBlank String password) {
+    }
+
+    record RefreshRequest(@NotBlank @Size(max = 64) String refreshToken) {
     }
 
     record UserResponse(UUID id, String email, String fullName) {

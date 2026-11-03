@@ -26,7 +26,7 @@ Una API REST de monedero digital multidivisa: los usuarios abren monederos, ingr
 
 ## Funcionalidades
 
-- **Cuentas**: registro e inicio de sesión con contraseñas cifradas con BCrypt y tokens de acceso JWT de corta duración.
+- **Cuentas**: registro e inicio de sesión con contraseñas cifradas con BCrypt y tokens de acceso JWT de corta duración, renovados con refresh tokens de un solo uso que solo se guardan como hash.
 - **Monederos**: un monedero por divisa y usuario, en cualquier divisa ISO 4217.
 - **Movimientos de dinero**: ingresos, retiradas y transferencias entre usuarios, con un libro de movimientos de solo inserción (append-only) e historial paginado.
 - **Conversión de divisas**: mover dinero entre tus propios monederos en distintas divisas, al último tipo de cambio de [fx-rate-service](https://github.com/Adri23Ausin/fx-rate-service). El tipo y su fecha se guardan con la transacción.
@@ -121,7 +121,8 @@ docker compose up -d postgres
 | Método | Ruta | Descripción |
 |---|---|---|
 | `POST` | `/api/v1/auth/register` | Crear una cuenta |
-| `POST` | `/api/v1/auth/login` | Obtener un token de acceso (15 min) |
+| `POST` | `/api/v1/auth/login` | Obtener un token de acceso (15 min) y un refresh token (7 días) |
+| `POST` | `/api/v1/auth/refresh` | Cambiar un refresh token por tokens nuevos; cada refresh token sirve una sola vez |
 | `POST` | `/api/v1/wallets` | Abrir un monedero `{"currency": "EUR"}` |
 | `GET` | `/api/v1/wallets` | Listar tus monederos |
 | `GET` | `/api/v1/wallets/{id}` | Obtener uno de tus monederos |
@@ -153,7 +154,7 @@ Si se envía de nuevo la misma petición, se devuelve la misma transacción con 
 | Código | Cuándo |
 |---|---|
 | `400` | Errores de validación, divisa desconocida, más decimales de los que admite la divisa, falta el `Idempotency-Key` |
-| `401` | Token ausente, caducado o manipulado, o credenciales incorrectas |
+| `401` | Token ausente, caducado o manipulado, credenciales incorrectas, o refresh token inválido, usado o caducado |
 | `404` | El monedero no existe **o pertenece a otra persona** |
 | `409` | Email o monedero duplicado, o un monedero que sigue en conflicto tras agotar los reintentos (reintenta con la misma clave) |
 | `422` | Saldo insuficiente, divisas distintas, `Idempotency-Key` reutilizado con un cuerpo diferente |
@@ -201,7 +202,7 @@ Si se envía de nuevo la misma petición, se devuelve la misma transacción con 
 
 ## Posibles mejoras
 
-- Refresh tokens y revocación de tokens.
+- Cierre de sesión y revocación de tokens.
 - Una tarea programada que elimine las claves de idempotencia con más de 24 horas.
 - Publicación de eventos de transacción (transactional outbox) para notificaciones y analítica.
 - Métricas y trazas con Micrometer y OpenTelemetry.
