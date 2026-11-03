@@ -4,6 +4,7 @@ import com.adrianausin.wallet.application.ApplicationException;
 import com.adrianausin.wallet.application.EmailAlreadyRegisteredException;
 import com.adrianausin.wallet.application.IdempotencyKeyReusedException;
 import com.adrianausin.wallet.application.InvalidCredentialsException;
+import com.adrianausin.wallet.application.InvalidRefreshTokenException;
 import com.adrianausin.wallet.application.WalletAlreadyExistsException;
 import com.adrianausin.wallet.application.WalletNotFoundException;
 import com.adrianausin.wallet.domain.CurrencyMismatchException;
@@ -43,6 +44,7 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
             case WalletAlreadyExistsException e -> HttpStatus.CONFLICT;
             case EmailAlreadyRegisteredException e -> HttpStatus.CONFLICT;
             case InvalidCredentialsException e -> HttpStatus.UNAUTHORIZED;
+            case InvalidRefreshTokenException e -> HttpStatus.UNAUTHORIZED;
             case IdempotencyKeyReusedException e -> HttpStatus.UNPROCESSABLE_CONTENT;
         };
         return problem(status, ex);
