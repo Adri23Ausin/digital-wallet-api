@@ -5,7 +5,7 @@ package com.adrianausin.wallet.application;
  */
 public abstract sealed class ApplicationException extends RuntimeException
         permits WalletNotFoundException, WalletAlreadyExistsException, EmailAlreadyRegisteredException,
-        InvalidCredentialsException, IdempotencyKeyReusedException {
+        InvalidCredentialsException, InvalidRefreshTokenException, IdempotencyKeyReusedException {
 
     protected ApplicationException(String message) {
         super(message);

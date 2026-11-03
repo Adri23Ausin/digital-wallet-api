@@ -22,6 +22,11 @@ class UserPersistenceAdapter implements UserRepository {
     }
 
     @Override
+    public Optional<User> findById(UserId id) {
+        return repository.findById(id.value()).map(UserPersistenceAdapter::toDomain);
+    }
+
+    @Override
     public Optional<User> findByEmail(String email) {
         return repository.findByEmail(email).map(UserPersistenceAdapter::toDomain);
     }
