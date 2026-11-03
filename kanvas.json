@@ -1,0 +1,116 @@
+{
+  "kanvas": 1,
+  "title": "digital-wallet-api",
+  "groups": [
+    {
+      "id": "SC",
+      "name": "Security"
+    },
+    {
+      "id": "MM",
+      "name": "Money movements"
+    },
+    {
+      "id": "OP",
+      "name": "Operations"
+    },
+    {
+      "id": "OB",
+      "name": "Observability"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "SC-01",
+      "title": "Refresh tokens",
+      "state": "done",
+      "group": "SC",
+      "at": "2026-11-03T08:02:39Z",
+      "by": "claude-code",
+      "desc": "Login returns a short-lived access token plus a refresh token, and a new endpoint swaps a valid refresh token for a new pair (rotating it). Done when an integration test shows an expired access token can be renewed and a used refresh token is rejected.",
+      "notes": [
+        {
+          "at": "2026-11-03T08:05:48Z",
+          "by": "human",
+          "text": "Started in the board."
+        },
+        {
+          "at": "2026-11-03T08:08:38Z",
+          "by": "claude-code",
+          "text": "Plan: read the current JWT login flow, then add rotating refresh tokens stored hashed in PostgreSQL, a refresh endpoint, and integration tests. Work on branch feat/refresh-tokens."
+        },
+        {
+          "at": "2026-11-03T08:15:25Z",
+          "by": "claude-code",
+          "text": "Login now returns a refresh token (valid 7 days) next to the access token, and the new POST /api/v1/auth/refresh swaps it for a fresh pair. Each refresh token works exactly once.\n\nHow it was verified: full `mvnw verify` passes (76 tests, PostgreSQL via Testcontainers). New integration tests show an expired access token being renewed, a used refresh token getting 401, and 10 simultaneous refreshes with one token where exactly one succeeds.\n\nWhat to check:\n- Try it in Swagger UI: log in, copy `refreshToken`, call /auth/refresh twice with it; the second call must answer 401.\n- Response shape changed: login and refresh now also return `refreshToken` and `refreshExpiresIn` (seconds). Existing clients keep working, they just ignore the new fields.\n- Lifetime is set by `wallet.security.refresh-token.ttl` (default 7d).\n\nDecision for you: when a used token is presented again (a sign it was stolen), it is only rejected. Revoking every token of that user in that case fits better in SC-02 (revocation). Agree?\n\nBranch feat/refresh-tokens, nothing committed yet. README (EN and ES) updated."
+        }
+      ],
+      "started": {
+        "at": "2026-11-03T08:08:38Z",
+        "by": "claude-code"
+      }
+    },
+    {
+      "id": "SC-02",
+      "title": "Token revocation and logout",
+      "state": "proposed",
+      "group": "SC",
+      "deps": ["SC-01"],
+      "at": "2026-11-03T08:02:39Z",
+      "by": "claude-code",
+      "desc": "A user can log out, which invalidates their refresh token, and revoked tokens stop working before they expire. Done when an integration test shows a logged-out token is refused."
+    },
+    {
+      "id": "MM-01",
+      "title": "Currency conversion between wallets",
+      "state": "doing",
+      "group": "MM",
+      "at": "2026-11-03T08:02:39Z",
+      "by": "claude-code",
+      "desc": "A user can move money between two of their own wallets in different currencies, at a rate from a rate service such as fx-rate-service behind an outbound port. The rate used is stored in the ledger. Done when a conversion keeps both ledgers balanced and is idempotent like any other movement.",
+      "notes": [
+        {
+          "at": "2026-11-03T08:05:17Z",
+          "by": "human",
+          "text": "Started in the board."
+        },
+        {
+          "at": "2026-11-03T08:10:53Z",
+          "by": "claude-code",
+          "text": "Plan: add a conversion movement (POST /api/v1/conversions) between two of the user's own wallets. Rate comes from fx-rate-service through a new outbound port; the rate and its date are stored on the transaction. Same idempotency and retry rules as transfers. Work on branch feat/currency-conversion (separate worktree, so SC-01's checkout is untouched)."
+        }
+      ],
+      "started": {
+        "at": "2026-11-03T08:10:53Z",
+        "by": "claude-code"
+      }
+    },
+    {
+      "id": "OP-01",
+      "title": "Clean up old idempotency keys",
+      "state": "proposed",
+      "group": "OP",
+      "at": "2026-11-03T08:02:39Z",
+      "by": "claude-code",
+      "desc": "A scheduled job deletes idempotency keys older than 24 hours, so the table stops growing. Done when a test shows old keys are removed, recent ones are kept, and the job is safe to run on several instances."
+    },
+    {
+      "id": "OP-02",
+      "title": "Publish transaction events",
+      "state": "proposed",
+      "group": "OP",
+      "at": "2026-11-03T08:02:39Z",
+      "by": "claude-code",
+      "desc": "Every completed deposit, withdrawal or transfer writes an event to an outbox table in the same database transaction, and a relay publishes it afterwards. Done when no event is lost or duplicated if the app crashes between the commit and the publish."
+    },
+    {
+      "id": "OB-01",
+      "title": "Metrics and tracing",
+      "state": "proposed",
+      "group": "OB",
+      "at": "2026-11-03T08:02:39Z",
+      "by": "claude-code",
+      "desc": "Micrometer metrics (movements, failures, retries) and OpenTelemetry traces for each request. Done when the metrics endpoint shows them and a trace follows a transfer through the database call."
+    }
+  ]
+}
