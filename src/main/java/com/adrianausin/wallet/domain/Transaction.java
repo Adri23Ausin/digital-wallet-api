@@ -1,6 +1,7 @@
 package com.adrianausin.wallet.domain;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
 
 import com.adrianausin.wallet.domain.Ids.TransactionId;
@@ -18,6 +19,18 @@ public sealed interface Transaction
     Money amount();
 
     Instant createdAt();
+
+    /**
+     * The wallets whose balance this transaction changed.
+     */
+    default List<WalletId> walletIds() {
+        return switch (this) {
+            case Deposit d -> List.of(d.walletId());
+            case Withdrawal w -> List.of(w.walletId());
+            case Transfer t -> List.of(t.sourceWalletId(), t.targetWalletId());
+            case Conversion c -> List.of(c.sourceWalletId(), c.targetWalletId());
+        };
+    }
 
     record Deposit(TransactionId id, WalletId walletId, Money amount, Instant createdAt) implements Transaction {
         public Deposit {

@@ -3,9 +3,11 @@ package com.adrianausin.wallet.application.port.in;
 import java.util.Currency;
 import java.util.List;
 
+import com.adrianausin.wallet.domain.Ids.TransactionId;
 import com.adrianausin.wallet.domain.Ids.UserId;
 import com.adrianausin.wallet.domain.Ids.WalletId;
 import com.adrianausin.wallet.domain.LedgerEntry;
+import com.adrianausin.wallet.domain.Transaction;
 import com.adrianausin.wallet.domain.Wallet;
 
 public interface ManageWalletsUseCase {
@@ -17,4 +19,10 @@ public interface ManageWalletsUseCase {
     Wallet get(UserId ownerId, WalletId walletId);
 
     PageResult<LedgerEntry> history(UserId ownerId, WalletId walletId, int page, int size);
+
+    /**
+     * A transaction that touched at least one of the user's wallets, e.g. to see the rate a
+     * conversion in the history was made at.
+     */
+    Transaction transaction(UserId userId, TransactionId transactionId);
 }

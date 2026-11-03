@@ -150,15 +150,24 @@ public final class InMemoryRepositories {
 
         private final Map<String, BigDecimal> rates = new ConcurrentHashMap<>();
         private final AtomicInteger lookups = new AtomicInteger();
+        private volatile Runnable onLookup = () -> { };
 
         public ExchangeRates set(String from, String to, String rate) {
             rates.put(from + "/" + to, new BigDecimal(rate));
             return this;
         }
 
+        /**
+         * Runs a check on every lookup, e.g. that no transaction is open.
+         */
+        public void onLookup(Runnable check) {
+            onLookup = check;
+        }
+
         @Override
         public ExchangeRate latest(Currency from, Currency to) {
             lookups.incrementAndGet();
+            onLookup.run();
             BigDecimal rate = rates.get(from.getCurrencyCode() + "/" + to.getCurrencyCode());
             if (rate == null) {
                 throw new UnsupportedCurrencyPairException(from, to);

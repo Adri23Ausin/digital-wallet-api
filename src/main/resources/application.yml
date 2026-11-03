@@ -33,6 +33,7 @@ wallet:
     # fx-rate-service (https://github.com/Adri23Ausin/fx-rate-service), used for currency conversions
     base-url: ${FX_RATE_URL:http://localhost:8022}
     timeout: 2s
+    cache-ttl: 1m
 
 management:
   endpoints:

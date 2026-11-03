@@ -34,6 +34,14 @@ class ConversionIT extends IntegrationTest {
         assertThat(read(credit, "$.items[0].type")).isEqualTo("CREDIT");
         assertThat(read(credit, "$.items[0].amount")).isEqualTo("43.37");
         assertThat(read(credit, "$.items[0].balanceAfter")).isEqualTo("43.37");
+
+        // The rate stays visible from the history, through the entry's transaction
+        MvcTestResult stored = get("/api/v1/transactions/" + read(credit, "$.items[0].transactionId"), token);
+        assertThat(stored).hasStatusOk();
+        assertThat(read(stored, "$.conversion.rate")).isEqualTo("1.0842");
+        assertThat(read(stored, "$.conversion.rateDate")).isEqualTo("2026-10-23");
+        assertThat(get("/api/v1/transactions/" + read(conversion, "$.id"), registerAndLogin()))
+                .hasStatus(HttpStatus.NOT_FOUND);
     }
 
     @Test

@@ -26,6 +26,16 @@ class MoneyTest {
     }
 
     @Test
+    void rejectsAmountsTooLargeToStore() {
+        assertThat(Money.of("999999999999999.99", "EUR").amount()).isEqualByComparingTo("999999999999999.99");
+        assertThatThrownBy(() -> Money.of("1000000000000000", "EUR"))
+                .isInstanceOf(InvalidAmountException.class)
+                .hasMessageContaining("15 integer digits");
+        assertThatThrownBy(() -> Money.of("999999999999999", "EUR").plus(Money.of("1", "EUR")))
+                .isInstanceOf(InvalidAmountException.class);
+    }
+
+    @Test
     void addsAndSubtracts() {
         Money a = Money.of("10.25", "EUR");
         Money b = Money.of("0.75", "EUR");

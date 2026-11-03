@@ -28,6 +28,9 @@ import com.adrianausin.wallet.domain.Transaction.Conversion;
 import com.adrianausin.wallet.domain.Wallet;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionOperations;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -43,6 +46,7 @@ class MoneyMovementServiceTest {
     private InMemoryRepositories.Wallets wallets;
     private InMemoryRepositories.Transactions transactions;
     private InMemoryRepositories.ExchangeRates rates;
+    private final RecordingTransactions transaction = new RecordingTransactions();
     private MoneyMovementService service;
     private WalletService walletService;
 
@@ -52,7 +56,7 @@ class MoneyMovementServiceTest {
         transactions = new InMemoryRepositories.Transactions();
         rates = new InMemoryRepositories.ExchangeRates().set("EUR", "USD", "1.0842").set("EUR", "JPY", "175.51");
         service = new MoneyMovementService(wallets, transactions, new InMemoryRepositories.IdempotencyKeys(), rates,
-                CLOCK);
+                transaction, CLOCK);
         walletService = new WalletService(wallets, transactions, CLOCK);
     }
 
@@ -217,6 +221,17 @@ class MoneyMovementServiceTest {
     }
 
     @Test
+    void looksUpTheRateBeforeTheDatabaseTransactionStarts() {
+        WalletId euros = fundedWallet(alice, "EUR", "100");
+        WalletId dollars = walletService.open(alice, Currency.getInstance("USD")).id();
+        rates.onLookup(() -> assertThat(transaction.isActive()).isFalse());
+
+        service.convert(new ConvertCommand(alice, key(), euros, dollars, BigDecimal.TEN));
+
+        assertThat(rates.lookups()).isEqualTo(1);
+    }
+
+    @Test
     void canOnlyConvertBetweenYourOwnWallets() {
         WalletId alicesEuros = fundedWallet(alice, "EUR", "100");
         WalletId bobsDollars = walletService.open(bob, Currency.getInstance("USD")).id();
@@ -247,6 +262,16 @@ class MoneyMovementServiceTest {
                 .isInstanceOf(InvalidAmountException.class)
                 .hasMessageContaining("too small");
         assertThat(balanceOf(yen)).isEqualTo(Money.of("1000", "JPY"));
+    }
+
+    @Test
+    void cannotConvertIntoAnAmountTooLargeToStore() {
+        WalletId euros = fundedWallet(alice, "EUR", "100000000000000");
+        WalletId yen = walletService.open(alice, Currency.getInstance("JPY")).id();
+
+        assertThatThrownBy(() -> service.convert(new ConvertCommand(alice, key(), euros, yen,
+                new BigDecimal("100000000000000")))).isInstanceOf(InvalidAmountException.class);
+        assertThat(balanceOf(euros)).isEqualTo(Money.of("100000000000000", "EUR"));
     }
 
     @Test
@@ -289,5 +314,28 @@ class MoneyMovementServiceTest {
 
     private static String key() {
         return UUID.randomUUID().toString();
+    }
+
+    /**
+     * Runs callbacks directly, remembering whether one is running, as a stand-in for a database
+     * transaction.
+     */
+    private static final class RecordingTransactions implements TransactionOperations {
+
+        private boolean active;
+
+        @Override
+        public <T> T execute(TransactionCallback<T> action) {
+            active = true;
+            try {
+                return action.doInTransaction(new SimpleTransactionStatus());
+            } finally {
+                active = false;
+            }
+        }
+
+        boolean isActive() {
+            return active;
+        }
     }
 }

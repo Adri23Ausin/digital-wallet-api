@@ -45,6 +45,29 @@ Content-Type: application/json
 
 {"sourceWalletId": "{{wallet}}", "targetWalletId": "00000000-0000-0000-0000-000000000000", "amount": 10, "description": "Dinner"}
 
+### Open a USD wallet, to convert into
+POST http://localhost:8080/api/v1/wallets
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"currency": "USD"}
+
+> {% client.global.set("walletUsd", response.body.id); %}
+
+### Convert EUR to USD at the latest rate (needs fx-rate-service at FX_RATE_URL)
+POST http://localhost:8080/api/v1/conversions
+Authorization: Bearer {{token}}
+Idempotency-Key: conversion-2026-10-26-001
+Content-Type: application/json
+
+{"sourceWalletId": "{{wallet}}", "targetWalletId": "{{walletUsd}}", "amount": 10}
+
+> {% client.global.set("conversion", response.body.id); %}
+
+### The conversion again, with the rate it was made at
+GET http://localhost:8080/api/v1/transactions/{{conversion}}
+Authorization: Bearer {{token}}
+
 ### My wallets
 GET http://localhost:8080/api/v1/wallets
 Authorization: Bearer {{token}}

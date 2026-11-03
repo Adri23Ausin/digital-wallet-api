@@ -38,8 +38,6 @@ public record ExchangeRate(Currency base, Currency quote, BigDecimal rate, Local
         if (!amount.currency().equals(base)) {
             throw new CurrencyMismatchException(base, amount.currency());
         }
-        BigDecimal converted = amount.amount().multiply(rate)
-                .setScale(Math.max(quote.getDefaultFractionDigits(), 0), RoundingMode.HALF_EVEN);
-        return new Money(converted, quote);
+        return Money.rounded(amount.amount().multiply(rate), quote);
     }
 }

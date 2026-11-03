@@ -112,7 +112,7 @@ docker compose up -d postgres
 
 > La clave de firma JWT de `application.yml` es solo para desarrollo local. En cualquier otro entorno define `JWT_SECRET` (en base64, al menos 256 bits, p. ej. `openssl rand -base64 32`).
 >
-> Las conversiones leen los tipos de fx-rate-service en `FX_RATE_URL` (por defecto `http://localhost:8022`). Sin él, el resto de endpoints funciona y las conversiones responden `503`.
+> Las conversiones leen los tipos de fx-rate-service en `FX_RATE_URL` (por defecto `http://localhost:8022`; en Docker Compose, el puerto 8022 del host). Sin él, el resto de endpoints funciona y las conversiones responden `503`. Los tipos de cada divisa base se reutilizan durante un minuto (`wallet.fx-rate.cache-ttl`), así la API no supera el límite de peticiones de fx-rate-service.
 
 ## API
 
@@ -130,6 +130,7 @@ docker compose up -d postgres
 | `POST` | `/api/v1/wallets/{id}/withdrawals` | Retirar `{"amount": 40.50}`, requiere `Idempotency-Key` |
 | `POST` | `/api/v1/transfers` | Transferir a cualquier monedero de la misma divisa, requiere `Idempotency-Key` |
 | `POST` | `/api/v1/conversions` | Convertir entre dos de tus monederos en distintas divisas, requiere `Idempotency-Key` |
+| `GET` | `/api/v1/transactions/{id}` | Una transacción de uno de tus monederos, con el tipo de una conversión |
 
 ```bash
 TOKEN=$(curl -s -X POST localhost:8080/api/v1/auth/login -H 'Content-Type: application/json' \

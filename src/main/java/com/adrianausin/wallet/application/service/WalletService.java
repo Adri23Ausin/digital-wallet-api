@@ -4,14 +4,17 @@ import java.time.Clock;
 import java.util.Currency;
 import java.util.List;
 
+import com.adrianausin.wallet.application.TransactionNotFoundException;
 import com.adrianausin.wallet.application.WalletAlreadyExistsException;
 import com.adrianausin.wallet.application.port.in.ManageWalletsUseCase;
 import com.adrianausin.wallet.application.port.in.PageResult;
 import com.adrianausin.wallet.application.port.out.TransactionRepository;
 import com.adrianausin.wallet.application.port.out.WalletRepository;
+import com.adrianausin.wallet.domain.Ids.TransactionId;
 import com.adrianausin.wallet.domain.Ids.UserId;
 import com.adrianausin.wallet.domain.Ids.WalletId;
 import com.adrianausin.wallet.domain.LedgerEntry;
+import com.adrianausin.wallet.domain.Transaction;
 import com.adrianausin.wallet.domain.Wallet;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,5 +62,15 @@ class WalletService implements ManageWalletsUseCase {
     public PageResult<LedgerEntry> history(UserId ownerId, WalletId walletId, int page, int size) {
         ownedWallets.get(ownerId, walletId);
         return transactions.findEntries(walletId, page, size);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Transaction transaction(UserId userId, TransactionId transactionId) {
+        return transactions.findById(transactionId)
+                .filter(transaction -> transaction.walletIds().stream()
+                        .flatMap(id -> wallets.findById(id).stream())
+                        .anyMatch(wallet -> wallet.isOwnedBy(userId)))
+                .orElseThrow(() -> new TransactionNotFoundException(transactionId));
     }
 }

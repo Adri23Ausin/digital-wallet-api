@@ -112,7 +112,7 @@ docker compose up -d postgres
 
 > The JWT signing key in `application.yml` is for local development only. Set `JWT_SECRET` (base64, at least 256 bits, e.g. `openssl rand -base64 32`) anywhere else.
 >
-> Conversions read rates from fx-rate-service at `FX_RATE_URL` (default `http://localhost:8022`). Without it, every other endpoint works and conversions answer `503`.
+> Conversions read rates from fx-rate-service at `FX_RATE_URL` (default `http://localhost:8022`; in Docker Compose, port 8022 on the host). Without it, every other endpoint works and conversions answer `503`. Rates of each base currency are reused for a minute (`wallet.fx-rate.cache-ttl`), so the API stays within fx-rate-service's rate limit.
 
 ## API
 
@@ -130,6 +130,7 @@ docker compose up -d postgres
 | `POST` | `/api/v1/wallets/{id}/withdrawals` | Withdraw `{"amount": 40.50}`, needs `Idempotency-Key` |
 | `POST` | `/api/v1/transfers` | Transfer to any wallet in the same currency, needs `Idempotency-Key` |
 | `POST` | `/api/v1/conversions` | Convert between two of your wallets in different currencies, needs `Idempotency-Key` |
+| `GET` | `/api/v1/transactions/{id}` | A transaction on one of your wallets, with a conversion's rate |
 
 ```bash
 TOKEN=$(curl -s -X POST localhost:8080/api/v1/auth/login -H 'Content-Type: application/json' \

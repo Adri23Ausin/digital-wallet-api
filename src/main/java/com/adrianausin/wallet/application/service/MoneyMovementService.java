@@ -20,8 +20,10 @@ import com.adrianausin.wallet.domain.Transaction.Deposit;
 import com.adrianausin.wallet.domain.Transaction.Transfer;
 import com.adrianausin.wallet.domain.Transaction.Withdrawal;
 import com.adrianausin.wallet.domain.Wallet;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
 
 @Service
 class MoneyMovementService implements MoveMoneyUseCase {
@@ -31,15 +33,18 @@ class MoneyMovementService implements MoveMoneyUseCase {
     private final OwnedWallets ownedWallets;
     private final Idempotency idempotency;
     private final ExchangeRateProvider exchangeRates;
+    private final TransactionOperations transaction;
     private final Clock clock;
 
     MoneyMovementService(WalletRepository wallets, TransactionRepository transactions,
-                         IdempotencyKeyRepository idempotencyKeys, ExchangeRateProvider exchangeRates, Clock clock) {
+                         IdempotencyKeyRepository idempotencyKeys, ExchangeRateProvider exchangeRates,
+                         TransactionOperations transaction, Clock clock) {
         this.wallets = wallets;
         this.transactions = transactions;
         this.ownedWallets = new OwnedWallets(wallets);
         this.idempotency = new Idempotency(idempotencyKeys, transactions);
         this.exchangeRates = exchangeRates;
+        this.transaction = transaction;
         this.clock = clock;
     }
 
@@ -95,22 +100,30 @@ class MoneyMovementService implements MoveMoneyUseCase {
         });
     }
 
+    /**
+     * Not {@code @Transactional}: the rate is looked up before the database transaction starts,
+     * so a slow rate service never holds a connection or the idempotency key's lock. A key that
+     * was already used skips the lookup, so a replay works even while the rate service is down.
+     */
     @Override
-    @Transactional
     public MovementResult convert(ConvertCommand command) {
+        ExchangeRate rate = idempotency.isUsed(command.userId(), command.idempotencyKey())
+                ? null
+                : rateFor(ownedPair(command));
+        return transaction.execute(status -> convert(command, rate));
+    }
+
+    private MovementResult convert(ConvertCommand command, @Nullable ExchangeRate lookedUpRate) {
         Instant now = clock.instant();
         String fingerprint = Idempotency.fingerprint("convert", command.sourceWalletId(), command.targetWalletId(),
                 command.amount());
         return idempotency.execute(command.userId(), command.idempotencyKey(), fingerprint, now, () -> {
-            Wallet source = ownedWallets.get(command.userId(), command.sourceWalletId());
-            Wallet target = ownedWallets.get(command.userId(), command.targetWalletId());
-            if (source.currency().equals(target.currency())) {
-                throw new InvalidTransferException("Both wallets are in %s, use a transfer instead"
-                        .formatted(source.currency().getCurrencyCode()));
-            }
+            WalletPair pair = ownedPair(command);
+            Wallet source = pair.source();
+            Wallet target = pair.target();
             Money amount = new Money(command.amount(), source.currency());
-            // Fetched only after the idempotency key is reserved, so a replay never asks for a new rate
-            ExchangeRate rate = exchangeRates.latest(source.currency(), target.currency());
+            // Only missing if the key was released between the check and the reservation
+            ExchangeRate rate = lookedUpRate != null ? lookedUpRate : rateFor(pair);
             Conversion conversion = new Conversion(TransactionId.newId(), source.id(), target.id(), amount,
                     rate.convert(amount), rate, now);
 
@@ -119,6 +132,27 @@ class MoneyMovementService implements MoveMoneyUseCase {
 
             return record(conversion, List.of(source, target), List.of(debit, credit));
         });
+    }
+
+    /**
+     * The source and target wallets of a conversion: both owned by the user, in different
+     * currencies.
+     */
+    private record WalletPair(Wallet source, Wallet target) {
+    }
+
+    private WalletPair ownedPair(ConvertCommand command) {
+        Wallet source = ownedWallets.get(command.userId(), command.sourceWalletId());
+        Wallet target = ownedWallets.get(command.userId(), command.targetWalletId());
+        if (source.currency().equals(target.currency())) {
+            throw new InvalidTransferException("Both wallets are in %s, use a transfer instead"
+                    .formatted(source.currency().getCurrencyCode()));
+        }
+        return new WalletPair(source, target);
+    }
+
+    private ExchangeRate rateFor(WalletPair pair) {
+        return exchangeRates.latest(pair.source().currency(), pair.target().currency());
     }
 
     private Transaction record(Transaction transaction, List<Wallet> changedWallets, List<LedgerEntry> entries) {
