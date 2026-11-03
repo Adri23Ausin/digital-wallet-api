@@ -5,13 +5,17 @@ import java.time.Instant;
 import java.util.List;
 
 import com.adrianausin.wallet.application.port.in.MoveMoneyUseCase;
+import com.adrianausin.wallet.application.port.out.ExchangeRateProvider;
 import com.adrianausin.wallet.application.port.out.IdempotencyKeyRepository;
 import com.adrianausin.wallet.application.port.out.TransactionRepository;
 import com.adrianausin.wallet.application.port.out.WalletRepository;
+import com.adrianausin.wallet.domain.ExchangeRate;
 import com.adrianausin.wallet.domain.Ids.TransactionId;
+import com.adrianausin.wallet.domain.InvalidTransferException;
 import com.adrianausin.wallet.domain.LedgerEntry;
 import com.adrianausin.wallet.domain.Money;
 import com.adrianausin.wallet.domain.Transaction;
+import com.adrianausin.wallet.domain.Transaction.Conversion;
 import com.adrianausin.wallet.domain.Transaction.Deposit;
 import com.adrianausin.wallet.domain.Transaction.Transfer;
 import com.adrianausin.wallet.domain.Transaction.Withdrawal;
@@ -26,14 +30,16 @@ class MoneyMovementService implements MoveMoneyUseCase {
     private final TransactionRepository transactions;
     private final OwnedWallets ownedWallets;
     private final Idempotency idempotency;
+    private final ExchangeRateProvider exchangeRates;
     private final Clock clock;
 
     MoneyMovementService(WalletRepository wallets, TransactionRepository transactions,
-                         IdempotencyKeyRepository idempotencyKeys, Clock clock) {
+                         IdempotencyKeyRepository idempotencyKeys, ExchangeRateProvider exchangeRates, Clock clock) {
         this.wallets = wallets;
         this.transactions = transactions;
         this.ownedWallets = new OwnedWallets(wallets);
         this.idempotency = new Idempotency(idempotencyKeys, transactions);
+        this.exchangeRates = exchangeRates;
         this.clock = clock;
     }
 
@@ -86,6 +92,32 @@ class MoneyMovementService implements MoveMoneyUseCase {
             LedgerEntry credit = target.credit(amount, transfer.id(), now);
 
             return record(transfer, List.of(source, target), List.of(debit, credit));
+        });
+    }
+
+    @Override
+    @Transactional
+    public MovementResult convert(ConvertCommand command) {
+        Instant now = clock.instant();
+        String fingerprint = Idempotency.fingerprint("convert", command.sourceWalletId(), command.targetWalletId(),
+                command.amount());
+        return idempotency.execute(command.userId(), command.idempotencyKey(), fingerprint, now, () -> {
+            Wallet source = ownedWallets.get(command.userId(), command.sourceWalletId());
+            Wallet target = ownedWallets.get(command.userId(), command.targetWalletId());
+            if (source.currency().equals(target.currency())) {
+                throw new InvalidTransferException("Both wallets are in %s, use a transfer instead"
+                        .formatted(source.currency().getCurrencyCode()));
+            }
+            Money amount = new Money(command.amount(), source.currency());
+            // Fetched only after the idempotency key is reserved, so a replay never asks for a new rate
+            ExchangeRate rate = exchangeRates.latest(source.currency(), target.currency());
+            Conversion conversion = new Conversion(TransactionId.newId(), source.id(), target.id(), amount,
+                    rate.convert(amount), rate, now);
+
+            LedgerEntry debit = source.debit(conversion.amount(), conversion.id(), now);
+            LedgerEntry credit = target.credit(conversion.convertedAmount(), conversion.id(), now);
+
+            return record(conversion, List.of(source, target), List.of(debit, credit));
         });
     }
 

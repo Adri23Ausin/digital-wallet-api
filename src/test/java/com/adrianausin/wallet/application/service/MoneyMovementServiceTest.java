@@ -9,7 +9,9 @@ import java.util.UUID;
 
 import com.adrianausin.wallet.application.IdempotencyKeyReusedException;
 import com.adrianausin.wallet.application.InMemoryRepositories;
+import com.adrianausin.wallet.application.UnsupportedCurrencyPairException;
 import com.adrianausin.wallet.application.WalletNotFoundException;
+import com.adrianausin.wallet.application.port.in.MoveMoneyUseCase.ConvertCommand;
 import com.adrianausin.wallet.application.port.in.MoveMoneyUseCase.DepositCommand;
 import com.adrianausin.wallet.application.port.in.MoveMoneyUseCase.MovementResult;
 import com.adrianausin.wallet.application.port.in.MoveMoneyUseCase.TransferCommand;
@@ -18,15 +20,18 @@ import com.adrianausin.wallet.domain.CurrencyMismatchException;
 import com.adrianausin.wallet.domain.Ids.UserId;
 import com.adrianausin.wallet.domain.Ids.WalletId;
 import com.adrianausin.wallet.domain.InsufficientFundsException;
+import com.adrianausin.wallet.domain.InvalidAmountException;
 import com.adrianausin.wallet.domain.LedgerEntry;
 import com.adrianausin.wallet.domain.Money;
 import com.adrianausin.wallet.domain.Transaction;
+import com.adrianausin.wallet.domain.Transaction.Conversion;
 import com.adrianausin.wallet.domain.Wallet;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 class MoneyMovementServiceTest {
 
@@ -37,6 +42,7 @@ class MoneyMovementServiceTest {
 
     private InMemoryRepositories.Wallets wallets;
     private InMemoryRepositories.Transactions transactions;
+    private InMemoryRepositories.ExchangeRates rates;
     private MoneyMovementService service;
     private WalletService walletService;
 
@@ -44,7 +50,9 @@ class MoneyMovementServiceTest {
     void setUp() {
         wallets = new InMemoryRepositories.Wallets();
         transactions = new InMemoryRepositories.Transactions();
-        service = new MoneyMovementService(wallets, transactions, new InMemoryRepositories.IdempotencyKeys(), CLOCK);
+        rates = new InMemoryRepositories.ExchangeRates().set("EUR", "USD", "1.0842").set("EUR", "JPY", "175.51");
+        service = new MoneyMovementService(wallets, transactions, new InMemoryRepositories.IdempotencyKeys(), rates,
+                CLOCK);
         walletService = new WalletService(wallets, transactions, CLOCK);
     }
 
@@ -159,14 +167,108 @@ class MoneyMovementServiceTest {
     }
 
     @Test
+    void conversionMovesMoneyBetweenCurrenciesAtTheLatestRate() {
+        WalletId euros = fundedWallet(alice, "EUR", "100");
+        WalletId dollars = walletService.open(alice, Currency.getInstance("USD")).id();
+
+        Transaction tx = service.convert(new ConvertCommand(alice, key(), euros, dollars, new BigDecimal("40")))
+                .transaction();
+
+        assertThat(balanceOf(euros)).isEqualTo(Money.of("60", "EUR"));
+        assertThat(balanceOf(dollars)).isEqualTo(Money.of("43.37", "USD"));
+        assertThat(tx).isInstanceOfSatisfying(Conversion.class, conversion -> {
+            assertThat(conversion.amount()).isEqualTo(Money.of("40", "EUR"));
+            assertThat(conversion.convertedAmount()).isEqualTo(Money.of("43.37", "USD"));
+            assertThat(conversion.rate().rate()).isEqualByComparingTo("1.0842");
+            assertThat(conversion.rate().date()).isEqualTo(InMemoryRepositories.ExchangeRates.RATE_DATE);
+        });
+        assertThat(transactions.entries()).filteredOn(e -> e.transactionId().equals(tx.id()))
+                .extracting(LedgerEntry::type, LedgerEntry::amount)
+                .containsExactly(tuple(LedgerEntry.Type.DEBIT, Money.of("40", "EUR")),
+                        tuple(LedgerEntry.Type.CREDIT, Money.of("43.37", "USD")));
+    }
+
+    @Test
+    void conversionRoundsToTheMinorUnitOfTheTargetCurrency() {
+        WalletId euros = fundedWallet(alice, "EUR", "100");
+        WalletId yen = walletService.open(alice, Currency.getInstance("JPY")).id();
+
+        service.convert(new ConvertCommand(alice, key(), euros, yen, new BigDecimal("10.01")));
+
+        // 10.01 * 175.51 = 1756.8551 -> 1757 (JPY has no decimals)
+        assertThat(balanceOf(yen)).isEqualTo(Money.of("1757", "JPY"));
+    }
+
+    @Test
+    void repeatingAConversionKeepsTheOriginalRateAndDoesNotMoveMoneyTwice() {
+        WalletId euros = fundedWallet(alice, "EUR", "100");
+        WalletId dollars = walletService.open(alice, Currency.getInstance("USD")).id();
+        ConvertCommand command = new ConvertCommand(alice, "convert-once", euros, dollars, new BigDecimal("40"));
+
+        MovementResult first = service.convert(command);
+        rates.set("EUR", "USD", "2");
+        MovementResult retry = service.convert(command);
+
+        assertThat(retry.replayed()).isTrue();
+        assertThat(retry.transaction()).isEqualTo(first.transaction());
+        assertThat(rates.lookups()).isEqualTo(1);
+        assertThat(balanceOf(euros)).isEqualTo(Money.of("60", "EUR"));
+        assertThat(balanceOf(dollars)).isEqualTo(Money.of("43.37", "USD"));
+    }
+
+    @Test
+    void canOnlyConvertBetweenYourOwnWallets() {
+        WalletId alicesEuros = fundedWallet(alice, "EUR", "100");
+        WalletId bobsDollars = walletService.open(bob, Currency.getInstance("USD")).id();
+
+        assertThatThrownBy(() -> service.convert(new ConvertCommand(alice, key(), alicesEuros, bobsDollars,
+                BigDecimal.TEN))).isInstanceOf(WalletNotFoundException.class);
+        assertThat(balanceOf(alicesEuros)).isEqualTo(Money.of("100", "EUR"));
+    }
+
+    @Test
+    void cannotConvertMoreThanTheBalance() {
+        WalletId euros = fundedWallet(alice, "EUR", "100");
+        WalletId dollars = walletService.open(alice, Currency.getInstance("USD")).id();
+
+        assertThatThrownBy(() -> service.convert(new ConvertCommand(alice, key(), euros, dollars,
+                new BigDecimal("100.01")))).isInstanceOf(InsufficientFundsException.class);
+        assertThat(balanceOf(dollars)).isEqualTo(Money.zero(Currency.getInstance("USD")));
+    }
+
+    @Test
+    void cannotConvertAnAmountThatRoundsToNothing() {
+        // 1 JPY * 0.0049 = 0.0049 EUR, which rounds to 0.00
+        rates.set("JPY", "EUR", "0.0049");
+        WalletId yen = fundedWallet(alice, "JPY", "1000");
+        WalletId euros = walletService.open(alice, Currency.getInstance("EUR")).id();
+
+        assertThatThrownBy(() -> service.convert(new ConvertCommand(alice, key(), yen, euros, BigDecimal.ONE)))
+                .isInstanceOf(InvalidAmountException.class)
+                .hasMessageContaining("too small");
+        assertThat(balanceOf(yen)).isEqualTo(Money.of("1000", "JPY"));
+    }
+
+    @Test
+    void cannotConvertWithoutAPublishedRate() {
+        WalletId euros = fundedWallet(alice, "EUR", "100");
+        WalletId francs = walletService.open(alice, Currency.getInstance("CHF")).id();
+
+        assertThatThrownBy(() -> service.convert(new ConvertCommand(alice, key(), euros, francs, BigDecimal.TEN)))
+                .isInstanceOf(UnsupportedCurrencyPairException.class);
+    }
+
+    @Test
     void balanceAlwaysMatchesTheLedger() {
         WalletId source = fundedWallet(alice, "EUR", "500");
         WalletId target = walletService.open(bob, Currency.getInstance("EUR")).id();
+        WalletId dollars = walletService.open(alice, Currency.getInstance("USD")).id();
         service.transfer(new TransferCommand(alice, key(), source, target, new BigDecimal("120"), null));
         service.withdraw(new WithdrawCommand(alice, key(), source, new BigDecimal("80.40")));
         service.deposit(new DepositCommand(alice, key(), source, new BigDecimal("0.40")));
+        service.convert(new ConvertCommand(alice, key(), source, dollars, new BigDecimal("33.33")));
 
-        for (WalletId wallet : new WalletId[] {source, target}) {
+        for (WalletId wallet : new WalletId[] {source, target, dollars}) {
             BigDecimal fromLedger = transactions.entries().stream()
                     .filter(e -> e.walletId().equals(wallet))
                     .map(e -> e.type() == LedgerEntry.Type.CREDIT ? e.amount().amount() : e.amount().amount().negate())

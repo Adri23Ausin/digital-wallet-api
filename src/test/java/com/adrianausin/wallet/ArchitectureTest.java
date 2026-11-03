@@ -21,7 +21,8 @@ class ArchitectureTest {
             .applicationServices("..application..")
             .adapter("web", "..adapter.in.web..")
             .adapter("persistence", "..adapter.out.persistence..")
-            .adapter("security", "..adapter.out.security..");
+            .adapter("security", "..adapter.out.security..")
+            .adapter("fx-rate", "..adapter.out.fxrate..");
 
     @ArchTest
     static final ArchRule domainIsPlainJava = noClasses()

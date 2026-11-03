@@ -2,6 +2,7 @@ package com.adrianausin.wallet.adapter.out.persistence;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -17,7 +18,7 @@ import org.jspecify.annotations.Nullable;
 class TransactionEntity {
 
     enum Type {
-        DEPOSIT, WITHDRAWAL, TRANSFER
+        DEPOSIT, WITHDRAWAL, TRANSFER, CONVERSION
     }
 
     @Id
@@ -41,6 +42,18 @@ class TransactionEntity {
 
     private @Nullable String description;
 
+    @Column(name = "converted_amount", precision = 19, scale = 4)
+    private @Nullable BigDecimal convertedAmount;
+
+    @Column(name = "converted_currency", length = 3)
+    private @Nullable String convertedCurrency;
+
+    @Column(name = "exchange_rate", precision = 19, scale = 10)
+    private @Nullable BigDecimal exchangeRate;
+
+    @Column(name = "rate_date")
+    private @Nullable LocalDate rateDate;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -57,6 +70,15 @@ class TransactionEntity {
         this.currency = currency;
         this.description = description;
         this.createdAt = createdAt;
+    }
+
+    TransactionEntity withConversion(BigDecimal convertedAmount, String convertedCurrency, BigDecimal exchangeRate,
+                                     LocalDate rateDate) {
+        this.convertedAmount = convertedAmount;
+        this.convertedCurrency = convertedCurrency;
+        this.exchangeRate = exchangeRate;
+        this.rateDate = rateDate;
+        return this;
     }
 
     UUID getId() {
@@ -85,6 +107,22 @@ class TransactionEntity {
 
     @Nullable String getDescription() {
         return description;
+    }
+
+    @Nullable BigDecimal getConvertedAmount() {
+        return convertedAmount;
+    }
+
+    @Nullable String getConvertedCurrency() {
+        return convertedCurrency;
+    }
+
+    @Nullable BigDecimal getExchangeRate() {
+        return exchangeRate;
+    }
+
+    @Nullable LocalDate getRateDate() {
+        return rateDate;
     }
 
     Instant getCreatedAt() {

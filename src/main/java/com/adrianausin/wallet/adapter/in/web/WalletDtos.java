@@ -2,12 +2,14 @@ package com.adrianausin.wallet.adapter.in.web;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
 import com.adrianausin.wallet.application.port.in.PageResult;
 import com.adrianausin.wallet.domain.LedgerEntry;
 import com.adrianausin.wallet.domain.Transaction;
+import com.adrianausin.wallet.domain.Transaction.Conversion;
 import com.adrianausin.wallet.domain.Transaction.Deposit;
 import com.adrianausin.wallet.domain.Transaction.Transfer;
 import com.adrianausin.wallet.domain.Transaction.Withdrawal;
@@ -42,6 +44,12 @@ final class WalletDtos {
             @Size(max = 255) @Nullable String description) {
     }
 
+    record ConversionRequest(
+            @NotNull UUID sourceWalletId,
+            @NotNull UUID targetWalletId,
+            @NotNull @Positive @Digits(integer = 15, fraction = 4) BigDecimal amount) {
+    }
+
     record WalletResponse(UUID id, String currency, BigDecimal balance, Instant createdAt) {
 
         static WalletResponse from(Wallet wallet) {
@@ -50,6 +58,9 @@ final class WalletDtos {
         }
     }
 
+    /**
+     * The {@code conversion} block is only present for conversions.
+     */
     record TransactionResponse(
             UUID id,
             String type,
@@ -58,6 +69,7 @@ final class WalletDtos {
             @Nullable UUID sourceWalletId,
             @Nullable UUID targetWalletId,
             @Nullable String description,
+            @Nullable ConversionDetails conversion,
             Instant createdAt) {
 
         static TransactionResponse from(Transaction transaction) {
@@ -66,13 +78,25 @@ final class WalletDtos {
             UUID id = transaction.id().value();
             return switch (transaction) {
                 case Deposit d -> new TransactionResponse(id, "DEPOSIT", amount, currency, null,
-                        d.walletId().value(), null, d.createdAt());
+                        d.walletId().value(), null, null, d.createdAt());
                 case Withdrawal w -> new TransactionResponse(id, "WITHDRAWAL", amount, currency,
-                        w.walletId().value(), null, null, w.createdAt());
+                        w.walletId().value(), null, null, null, w.createdAt());
                 case Transfer t -> new TransactionResponse(id, "TRANSFER", amount, currency,
-                        t.sourceWalletId().value(), t.targetWalletId().value(), t.description(), t.createdAt());
+                        t.sourceWalletId().value(), t.targetWalletId().value(), t.description(), null, t.createdAt());
+                case Conversion c -> new TransactionResponse(id, "CONVERSION", amount, currency,
+                        c.sourceWalletId().value(), c.targetWalletId().value(), null,
+                        new ConversionDetails(c.convertedAmount().amount(),
+                                c.convertedAmount().currency().getCurrencyCode(), c.rate().rate(), c.rate().date()),
+                        c.createdAt());
             };
         }
+    }
+
+    /**
+     * @param rate units of {@code convertedCurrency} per unit of the source currency
+     */
+    record ConversionDetails(BigDecimal convertedAmount, String convertedCurrency, BigDecimal rate,
+                             LocalDate rateDate) {
     }
 
     record LedgerEntryResponse(UUID id, UUID transactionId, String type, BigDecimal amount, BigDecimal balanceAfter,

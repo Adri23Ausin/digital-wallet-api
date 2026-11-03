@@ -8,11 +8,13 @@ import java.util.UUID;
 import com.adrianausin.wallet.adapter.out.persistence.TransactionEntity.Type;
 import com.adrianausin.wallet.application.port.in.PageResult;
 import com.adrianausin.wallet.application.port.out.TransactionRepository;
+import com.adrianausin.wallet.domain.ExchangeRate;
 import com.adrianausin.wallet.domain.Ids.TransactionId;
 import com.adrianausin.wallet.domain.Ids.WalletId;
 import com.adrianausin.wallet.domain.LedgerEntry;
 import com.adrianausin.wallet.domain.Money;
 import com.adrianausin.wallet.domain.Transaction;
+import com.adrianausin.wallet.domain.Transaction.Conversion;
 import com.adrianausin.wallet.domain.Transaction.Deposit;
 import com.adrianausin.wallet.domain.Transaction.Transfer;
 import com.adrianausin.wallet.domain.Transaction.Withdrawal;
@@ -60,6 +62,10 @@ class TransactionPersistenceAdapter implements TransactionRepository {
                     amount.amount(), currency, null, w.createdAt());
             case Transfer t -> new TransactionEntity(t.id().value(), Type.TRANSFER, t.sourceWalletId().value(),
                     t.targetWalletId().value(), amount.amount(), currency, t.description(), t.createdAt());
+            case Conversion c -> new TransactionEntity(c.id().value(), Type.CONVERSION, c.sourceWalletId().value(),
+                    c.targetWalletId().value(), amount.amount(), currency, null, c.createdAt())
+                    .withConversion(c.convertedAmount().amount(), c.convertedAmount().currency().getCurrencyCode(),
+                            c.rate().rate(), c.rate().date());
         };
     }
 
@@ -71,6 +77,13 @@ class TransactionPersistenceAdapter implements TransactionRepository {
             case WITHDRAWAL -> new Withdrawal(id, walletId(entity.getSourceWalletId()), amount, entity.getCreatedAt());
             case TRANSFER -> new Transfer(id, walletId(entity.getSourceWalletId()), walletId(entity.getTargetWalletId()),
                     amount, entity.getDescription(), entity.getCreatedAt());
+            case CONVERSION -> {
+                Currency convertedCurrency = Currency.getInstance(entity.getConvertedCurrency());
+                ExchangeRate rate = new ExchangeRate(amount.currency(), convertedCurrency, entity.getExchangeRate(),
+                        entity.getRateDate());
+                yield new Conversion(id, walletId(entity.getSourceWalletId()), walletId(entity.getTargetWalletId()),
+                        amount, new Money(entity.getConvertedAmount(), convertedCurrency), rate, entity.getCreatedAt());
+            }
         };
     }
 
