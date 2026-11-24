@@ -6,3 +6,9 @@ target/
 .claude/
 .DS_Store
 *.log
+
+# Kanvas board (local only)
+kanvas.json*
+.agents/
+.claude/skills/kanvas/
+AGENTS.md
